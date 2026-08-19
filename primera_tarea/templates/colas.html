@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Colas - Planificación de Tareas{% endblock %}
+
+{% block content %}
+  <h1>Colas: Planificación de Tareas</h1>
+  <p class="subtitle">
+    Dadas n tareas (cada una con un tiempo t<sub>i</sub>) y varios procesadores,
+    calcula el orden de ejecución que minimiza el tiempo medio de finalización.
+  </p>
+
+  <!-- Configuración del número de procesadores -->
+  <div class="control-panel">
+    <form method="POST" action="{{ url_for('colas_configurar_procesadores') }}" style="display: flex; gap: 8px; align-items: center">
+      <label for="num_procesadores" style="font-weight: 600; color: #334155">Procesadores:</label>
+      <input
+        type="number"
+        id="num_procesadores"
+        name="num_procesadores"
+        min="1"
+        max="10"
+        value="{{ num_procesadores }}"
+      />
+      <button type="submit" class="btn-action">Actualizar</button>
+    </form>
+  </div>
+
+  <!-- Formulario para dar de alta una tarea -->
+  <div class="control-panel">
+    <form method="POST" action="{{ url_for('colas_dar_de_alta') }}" style="display: flex; gap: 8px">
+      <input
+        type="text"
+        name="nombre"
+        placeholder="Nombre (opcional)"
+        style="width: 130px; padding: 8px; border: 2px solid #cbd5e1; border-radius: 6px"
+      />
+      <input
+        type="number"
+        name="tiempo"
+        placeholder="ti"
+        min="1"
+        step="any"
+        required
+        style="width: 80px; text-align: center; padding: 8px; border: 2px solid #cbd5e1; border-radius: 6px"
+      />
+      <button type="submit" class="btn-action">Dar de alta</button>
+    </form>
+  </div>
+
+  <!-- Acciones principales del menú -->
+  <div class="control-panel">
+    <form method="POST" action="{{ url_for('colas_mostrar') }}">
+      <button type="submit" class="btn-action">Mostrar</button>
+    </form>
+    <form method="POST" action="{{ url_for('colas_procesar') }}">
+      <button type="submit" class="btn-finish">Procesar (planificar)</button>
+    </form>
+    <form method="POST" action="{{ url_for('colas_salir') }}">
+      <button type="submit" class="btn-reset">Salir</button>
+    </form>
+  </div>
+
+  <!-- Mensaje de estado -->
+  <div class="message-box" style="margin-bottom: 20px; min-height: auto">
+    {% if mensaje_estado %}
+    <div class="status-card {{ tipo_estado }}">{{ mensaje_estado }}</div>
+    {% endif %}
+  </div>
+
+  <!-- Cola de tareas pendientes -->
+  <div class="workspace" style="margin-top: 0">
+    <div class="stack-wrapper" style="flex: 1">
+      <strong>Cola de tareas pendientes ({{ tareas|length }})</strong>
+      <div class="task-table-wrapper">
+        {% if tareas %}
+        <table class="task-table">
+          <thead>
+            <tr>
+              <th>Tarea</th>
+              <th>t<sub>i</sub></th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for t in tareas %}
+            <tr>
+              <td>{{ t.nombre }}</td>
+              <td>{{ t.tiempo }}</td>
+              <td>
+                <form method="POST" action="{{ url_for('colas_eliminar') }}">
+                  <input type="hidden" name="id_tarea" value="{{ t.id }}" />
+                  <button type="submit" class="btn-delete" title="Eliminar tarea">✕</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="empty-hint">No hay tareas registradas todavía.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Resultado de la planificación -->
+  {% if resultado %}
+  <div class="result-section">
+    <div class="result-header">
+      <strong>Planificación calculada (orden SPT: menor t<sub>i</sub> primero)</strong>
+      <span class="avg-badge">Tiempo medio de finalización: {{ resultado.promedio }}</span>
+    </div>
+
+    <div class="processors-grid">
+      {% for proc_id, lista in resultado.procesadores.items() %}
+      <div class="processor-column">
+        <div class="processor-title">Procesador {{ proc_id }}</div>
+        {% if lista %}
+          {% for tarea in lista %}
+          <div class="processor-task">
+            <span class="task-name">{{ tarea.nombre }}</span>
+            <span class="task-time">t<sub>i</sub>={{ tarea.tiempo }}</span>
+            <span class="task-window">[{{ tarea.inicio }} → {{ tarea.fin }}]</span>
+          </div>
+          {% endfor %}
+        {% else %}
+          <p class="empty-hint">Sin tareas asignadas.</p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+{% endblock %}

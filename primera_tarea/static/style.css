@@ -206,3 +206,153 @@ h1 {
   color: #b91c1c;
   border: 1px solid #fecaca;
 }
+/* =====================================================================
+   BARRA DE NAVEGACIÓN ENTRE EJERCICIOS
+   ===================================================================== */
+.nav-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+}
+
+.nav-btn {
+  text-decoration: none;
+  background-color: #f1f5f9;
+  color: #334155;
+  font-weight: 600;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  transition: all 0.15s ease-in-out;
+}
+
+.nav-btn:hover {
+  background-color: #e2e8f0;
+}
+
+.nav-btn.active {
+  background-color: #1e293b;
+  color: #ffffff;
+  border-color: #1e293b;
+}
+
+/* =====================================================================
+   EJERCICIO DE COLAS: TABLA DE TAREAS PENDIENTES
+   ===================================================================== */
+.task-table-wrapper {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.task-table th {
+  text-align: left;
+  color: #64748b;
+  font-size: 13px;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.task-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.btn-delete {
+  background-color: transparent;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-delete:hover {
+  background-color: #fee2e2;
+}
+
+.empty-hint {
+  color: #94a3b8;
+  font-style: italic;
+  font-size: 14px;
+}
+
+/* =====================================================================
+   EJERCICIO DE COLAS: RESULTADO DE LA PLANIFICACIÓN
+   ===================================================================== */
+.result-section {
+  margin-top: 25px;
+  border-top: 2px dashed #e2e8f0;
+  padding-top: 20px;
+}
+
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.avg-badge {
+  background-color: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.processors-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.processor-column {
+  background-color: #f8fafc;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.processor-title {
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.processor-task {
+  background-color: #3b82f6;
+  color: white;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.processor-task .task-name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.processor-task .task-window {
+  opacity: 0.9;
+}

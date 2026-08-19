@@ -1,8 +1,14 @@
 # Manual de Instalación y Ejecución
 
-## TDA Pila - Simulación de Equilibrado de Símbolos
+Aplicación web en **Python y Flask** que reúne los ejercicios de la materia. Desde la barra de navegación superior se puede cambiar entre ellos:
 
-Este proyecto es una aplicación web basada en **Python y Flask** para visualizar y simular el funcionamiento de una Pila en la verificación de balanceo de paréntesis, corchetes y llaves.
+## 1. TDA Pila - Simulación de Equilibrado de Símbolos
+
+Visualiza y simula el funcionamiento de una Pila en la verificación de balanceo de paréntesis, corchetes y llaves. Ruta: `/`.
+
+## 2. Colas - Planificación de Tareas en Procesadores
+
+Dado un conjunto de n tareas (cada una con un tiempo t<sub>i</sub>) y varios procesadores, calcula el orden de ejecución que **minimiza el tiempo medio de finalización**, usando dos colas de prioridad: una de tareas (ordenadas por t<sub>i</sub>, regla SPT) y otra de procesadores (ordenados por el instante en que quedan libres). Ruta: `/colas`. Funciones disponibles: dar de alta tarea, eliminar tarea, mostrar tareas, procesar (calcular la planificación) y salir (vaciar la cola).
 
 ---
 

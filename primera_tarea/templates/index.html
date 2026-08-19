@@ -1,83 +1,71 @@
-<!doctype html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <title>TDA Pila - Simulación Paso a Paso</title>
+{% extends "base.html" %}
+{% block title %}TDA Pila - Simulación Paso a Paso{% endblock %}
 
-    <!-- Enlace al archivo CSS externo mediante Flask -->
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='style.css') }}"
-    />
-  </head>
-  <body>
-    <div class="main-card">
-      <h1>TDA Pila: Equilibrado Paso a Paso</h1>
-      <p class="subtitle">
-        Inserta los símbolos uno por uno y observa la estructura en tiempo real.
-      </p>
+{% block content %}
+  <h1>TDA Pila: Equilibrado Paso a Paso</h1>
+  <p class="subtitle">
+    Inserta los símbolos uno por uno y observa la estructura en tiempo real.
+  </p>
 
-      <!-- Botonera de acceso rápido -->
-      <div class="quick-buttons">
-        {% for char in ['(', ')', '[', ']', '{', '}'] %}
-        <form method="POST" action="/agregar" style="display: inline">
-          <input type="hidden" name="simbolo" value="{{ char }}" />
-          <button type="submit">{{ char }}</button>
-        </form>
+  <!-- Botonera de acceso rápido -->
+  <div class="quick-buttons">
+    {% for char in ['(', ')', '[', ']', '{', '}'] %}
+    <form method="POST" action="/agregar" style="display: inline">
+      <input type="hidden" name="simbolo" value="{{ char }}" />
+      <button type="submit">{{ char }}</button>
+    </form>
+    {% endfor %}
+  </div>
+
+  <!-- Formulario manual y acciones -->
+  <div class="control-panel">
+    <form method="POST" action="/agregar" style="display: flex; gap: 8px">
+      <input
+        type="text"
+        name="simbolo"
+        maxlength="1"
+        placeholder="Símbolo"
+        autofocus
+        required
+      />
+      <button type="submit" class="btn-action">Apilar / Desapilar</button>
+    </form>
+
+    <form method="POST" action="/finalizar">
+      <button type="submit" class="btn-finish">Finalizar ('x')</button>
+    </form>
+
+    <form method="POST" action="/reiniciar">
+      <button type="submit" class="btn-reset">Reiniciar</button>
+    </form>
+  </div>
+
+  <!-- Área de trabajo visual -->
+  <div class="workspace">
+    <!-- Visualizador físico de la Pila -->
+    <div class="stack-wrapper">
+      <strong>Pila (Tope Arriba)</strong>
+      <div class="stack-box">
+        {% for item in pila %}
+        <div class="stack-node">{{ item }}</div>
         {% endfor %}
       </div>
+    </div>
 
-      <!-- Formulario manual y acciones -->
-      <div class="control-panel">
-        <form method="POST" action="/agregar" style="display: flex; gap: 8px">
-          <input
-            type="text"
-            name="simbolo"
-            maxlength="1"
-            placeholder="Símbolo"
-            autofocus
-            required
-          />
-          <button type="submit" class="btn-action">Apilar / Desapilar</button>
-        </form>
-
-        <form method="POST" action="/finalizar">
-          <button type="submit" class="btn-finish">Finalizar ('x')</button>
-        </form>
-
-        <form method="POST" action="/reiniciar">
-          <button type="submit" class="btn-reset">Reiniciar</button>
-        </form>
-      </div>
-
-      <!-- Área de trabajo visual -->
-      <div class="workspace">
-        <!-- Visualizador físico de la Pila -->
-        <div class="stack-wrapper">
-          <strong>Pila (Tope Arriba)</strong>
-          <div class="stack-box">
-            {% for item in pila %}
-            <div class="stack-node">{{ item }}</div>
-            {% endfor %}
-          </div>
+    <!-- Mensajes de inserción y operaciones -->
+    <div class="message-wrapper">
+      <strong>Mensajes de operación:</strong>
+      <div class="message-box">
+        {% if mensaje_estado %}
+        <div class="status-card {{ tipo_estado }}">
+          {{ mensaje_estado }}
         </div>
-
-        <!-- Mensajes de inserción y operaciones -->
-        <div class="message-wrapper">
-          <strong>Mensajes de operación:</strong>
-          <div class="message-box">
-            {% if mensaje_estado %}
-            <div class="status-card {{ tipo_estado }}">
-              {{ mensaje_estado }}
-            </div>
-            {% else %}
-            <div class="status-card info">
-              Ingrese un símbolo para comenzar la simulación.
-            </div>
-            {% endif %}
-          </div>
+        {% else %}
+        <div class="status-card info">
+          Ingrese un símbolo para comenzar la simulación.
         </div>
+        {% endif %}
       </div>
     </div>
-  </body>
-</html>
+  </div>
+{% endblock %}
