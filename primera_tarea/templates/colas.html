@@ -1,133 +1,365 @@
 {% extends "base.html" %}
-{% block title %}Colas - Planificación de Tareas{% endblock %}
+{% block title %}Colas de Prioridad - Planificación SJF / SPT con Horas de Llegada{% endblock %}
 
 {% block content %}
-  <h1>Colas: Planificación de Tareas</h1>
+<div class="dashboard-header">
+  <div class="header-badge">TDA Colas de Prioridad (Min-Heap)</div>
+  <h1 class="main-title">Planificación de Tareas en Procesadores</h1>
   <p class="subtitle">
-    Dadas n tareas (cada una con un tiempo t<sub>i</sub>) y varios procesadores,
-    calcula el orden de ejecución que minimiza el tiempo medio de finalización.
+    Algoritmo <strong>«El trabajo más corto primero»</strong> (<em>Shortest Job First - SJF</em>) con <strong>Hora de Llegada (<em>r</em><sub>i</sub>)</strong> y <strong>Duración (<em>t</em><sub>i</sub>)</strong>. 
+    Asigna y prioriza las tareas disponibles con menor tiempo de ejecución en cada procesador libre.
+  </p>
+</div>
+
+<!-- ================================================================= -->
+<!-- KPI METRIC CARDS                                                  -->
+<!-- ================================================================= -->
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="kpi-icon">📋</div>
+    <div class="kpi-data">
+      <span class="kpi-label">Tareas en Cola</span>
+      <span class="kpi-value">{{ total_tareas }}</span>
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-icon">⚙️</div>
+    <div class="kpi-data">
+      <span class="kpi-label">Procesadores</span>
+      <span class="kpi-value">{{ num_procesadores }}</span>
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-icon">⏱️</div>
+    <div class="kpi-data">
+      <span class="kpi-label">Carga Total (&Sigma; <em>t</em><sub>i</sub>)</span>
+      <span class="kpi-value">{{ tiempo_total }} u.</span>
+    </div>
+  </div>
+
+  <div class="kpi-card highlight">
+    <div class="kpi-icon">🎯</div>
+    <div class="kpi-data">
+      <span class="kpi-label">Tiempo Promedio</span>
+      <span class="kpi-value">
+        {% if resultado %}{{ resultado.promedio }} u.{% else %}--{% endif %}
+      </span>
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-icon">🏁</div>
+    <div class="kpi-data">
+      <span class="kpi-label">Tiempo Total (Makespan)</span>
+      <span class="kpi-value">
+        {% if resultado %}{{ resultado.makespan }} u.{% else %}--{% endif %}
+      </span>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- CONTROLES Y FORMULARIOS                                           -->
+<!-- ================================================================= -->
+<div class="card control-section">
+  <div class="control-row">
+    <!-- Formulario para agregar tareas -->
+    <form method="POST" action="{{ url_for('colas_dar_de_alta') }}" class="form-add-task">
+      <div class="input-group">
+        <label for="nombre">Nombre Tarea</label>
+        <input
+          type="text"
+          id="nombre"
+          name="nombre"
+          placeholder="Ej. T{{ total_tareas + 1 }}"
+          style="width: 110px;"
+        />
+      </div>
+      <div class="input-group">
+        <label for="llegada">Hora Llegada (<em>r</em><sub>i</sub>)</label>
+        <input
+          type="number"
+          id="llegada"
+          name="llegada"
+          value="0"
+          min="0"
+          step="any"
+          required
+          style="width: 100px; text-align: center;"
+        />
+      </div>
+      <div class="input-group">
+        <label for="tiempo">Duración (<em>t</em><sub>i</sub>)</label>
+        <input
+          type="number"
+          id="tiempo"
+          name="tiempo"
+          placeholder="Ej. 4"
+          min="1"
+          step="any"
+          required
+          style="width: 100px; text-align: center;"
+        />
+      </div>
+      <button type="submit" class="btn btn-primary">
+        <span>➕</span> Dar de Alta
+      </button>
+    </form>
+
+    <div class="divider-vertical"></div>
+
+    <!-- Formulario para configurar procesadores -->
+    <form method="POST" action="{{ url_for('colas_configurar_procesadores') }}" class="form-processors">
+      <div class="input-group">
+        <label for="num_procesadores">N° Procesadores</label>
+        <input
+          type="number"
+          id="num_procesadores"
+          name="num_procesadores"
+          min="1"
+          max="10"
+          value="{{ num_procesadores }}"
+          required
+          style="width: 90px; text-align: center;"
+        />
+      </div>
+      <button type="submit" class="btn btn-secondary">
+        <span>🔄</span> Aplicar
+      </button>
+    </form>
+  </div>
+
+  <!-- Botones de Acción Global -->
+  <div class="action-bar">
+    <form method="POST" action="{{ url_for('colas_procesar') }}">
+      <button type="submit" class="btn btn-success btn-lg">
+        <span>▶️</span> Calcular Planificación (SJF)
+      </button>
+    </form>
+
+    <form method="POST" action="{{ url_for('colas_cargar_ejemplo') }}">
+      <button type="submit" class="btn btn-info">
+        <span>✨</span> Cargar Ejemplo con Llegadas
+      </button>
+    </form>
+
+    <form method="POST" action="{{ url_for('colas_salir') }}">
+      <button type="submit" class="btn btn-danger" onclick="return confirm('¿Desea vaciar la cola de tareas?')">
+        <span>🗑️</span> Vaciar Cola
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ================================================================= -->
+<!-- MENSAJE DE ESTADO                                                 -->
+<!-- ================================================================= -->
+{% if mensaje_estado %}
+<div class="status-alert {{ tipo_estado }}">
+  <div class="alert-icon">
+    {% if tipo_estado == 'success' %}✅{% elif tipo_estado == 'error' %}⚠️{% else %}ℹ️{% endif %}
+  </div>
+  <div class="alert-text">{{ mensaje_estado }}</div>
+</div>
+{% endif %}
+
+<!-- ================================================================= -->
+<!-- VISUALIZADOR DE LA COLA DE PRIORIDAD (MIN-HEAP)                    -->
+<!-- ================================================================= -->
+<div class="card queue-visualizer-section">
+  <div class="card-header">
+    <div class="card-title-group">
+      <span class="section-icon">📊</span>
+      <h2 class="card-title">Cola de Tareas Registradas (Llegada <em>r</em><sub>i</sub> y Duración <em>t</em><sub>i</sub>)</h2>
+    </div>
+    <span class="badge">{{ cola_prioridad|length }} tareas registradas</span>
+  </div>
+
+  {% if cola_prioridad %}
+  <p class="section-desc">
+    Las tareas se liberan en el instante de su <strong>Hora de Llegada (<em>r</em><sub>i</sub>)</strong> y el Min-Heap atiende a la que tenga menor duración:
   </p>
 
-  <!-- Configuración del número de procesadores -->
-  <div class="control-panel">
-    <form method="POST" action="{{ url_for('colas_configurar_procesadores') }}" style="display: flex; gap: 8px; align-items: center">
-      <label for="num_procesadores" style="font-weight: 600; color: #334155">Procesadores:</label>
-      <input
-        type="number"
-        id="num_procesadores"
-        name="num_procesadores"
-        min="1"
-        max="10"
-        value="{{ num_procesadores }}"
-      />
-      <button type="submit" class="btn-action">Actualizar</button>
-    </form>
-  </div>
+  <div class="queue-track-container">
+    <div class="queue-head-tag">ORDEN DE ENTRADA Y PRIORIDAD ⏩</div>
+    <div class="queue-cards-wrapper">
+      {% for t in cola_prioridad %}
+      <div class="queue-task-card">
+        <div class="task-card-header">
+          <span class="task-priority-badge">#{{ loop.index }}</span>
+          <form method="POST" action="{{ url_for('colas_eliminar') }}" style="display:inline;">
+            <input type="hidden" name="id_tarea" value="{{ t.id }}" />
+            <button type="submit" class="btn-task-delete" title="Eliminar {{ t.nombre }}">×</button>
+          </form>
+        </div>
+        <div class="task-card-name">{{ t.nombre }}</div>
+        
+        <div class="task-arrival-badge">
+          <span>🕒 Llegada:</span> <strong>{{ t.llegada }}</strong> u.
+        </div>
+        
+        <div class="task-card-duration">
+          <span>⏱️ Duración:</span> <strong>{{ t.tiempo }}</strong> u.
+        </div>
 
-  <!-- Formulario para dar de alta una tarea -->
-  <div class="control-panel">
-    <form method="POST" action="{{ url_for('colas_dar_de_alta') }}" style="display: flex; gap: 8px">
-      <input
-        type="text"
-        name="nombre"
-        placeholder="Nombre (opcional)"
-        style="width: 130px; padding: 8px; border: 2px solid #cbd5e1; border-radius: 6px"
-      />
-      <input
-        type="number"
-        name="tiempo"
-        placeholder="ti"
-        min="1"
-        step="any"
-        required
-        style="width: 80px; text-align: center; padding: 8px; border: 2px solid #cbd5e1; border-radius: 6px"
-      />
-      <button type="submit" class="btn-action">Dar de alta</button>
-    </form>
-  </div>
-
-  <!-- Acciones principales del menú -->
-  <div class="control-panel">
-    <form method="POST" action="{{ url_for('colas_mostrar') }}">
-      <button type="submit" class="btn-action">Mostrar</button>
-    </form>
-    <form method="POST" action="{{ url_for('colas_procesar') }}">
-      <button type="submit" class="btn-finish">Procesar (planificar)</button>
-    </form>
-    <form method="POST" action="{{ url_for('colas_salir') }}">
-      <button type="submit" class="btn-reset">Salir</button>
-    </form>
-  </div>
-
-  <!-- Mensaje de estado -->
-  <div class="message-box" style="margin-bottom: 20px; min-height: auto">
-    {% if mensaje_estado %}
-    <div class="status-card {{ tipo_estado }}">{{ mensaje_estado }}</div>
-    {% endif %}
-  </div>
-
-  <!-- Cola de tareas pendientes -->
-  <div class="workspace" style="margin-top: 0">
-    <div class="stack-wrapper" style="flex: 1">
-      <strong>Cola de tareas pendientes ({{ tareas|length }})</strong>
-      <div class="task-table-wrapper">
-        {% if tareas %}
-        <table class="task-table">
-          <thead>
-            <tr>
-              <th>Tarea</th>
-              <th>t<sub>i</sub></th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for t in tareas %}
-            <tr>
-              <td>{{ t.nombre }}</td>
-              <td>{{ t.tiempo }}</td>
-              <td>
-                <form method="POST" action="{{ url_for('colas_eliminar') }}">
-                  <input type="hidden" name="id_tarea" value="{{ t.id }}" />
-                  <button type="submit" class="btn-delete" title="Eliminar tarea">✕</button>
-                </form>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <p class="empty-hint">No hay tareas registradas todavía.</p>
-        {% endif %}
+        <div class="task-bar-indicator">
+          <div class="task-bar-fill" style="width: {{ (t.tiempo / (tiempo_total or 1)) * 100 * 2 | round(1) }}%;"></div>
+        </div>
       </div>
-    </div>
-  </div>
-
-  <!-- Resultado de la planificación -->
-  {% if resultado %}
-  <div class="result-section">
-    <div class="result-header">
-      <strong>Planificación calculada (orden SPT: menor t<sub>i</sub> primero)</strong>
-      <span class="avg-badge">Tiempo medio de finalización: {{ resultado.promedio }}</span>
-    </div>
-
-    <div class="processors-grid">
-      {% for proc_id, lista in resultado.procesadores.items() %}
-      <div class="processor-column">
-        <div class="processor-title">Procesador {{ proc_id }}</div>
-        {% if lista %}
-          {% for tarea in lista %}
-          <div class="processor-task">
-            <span class="task-name">{{ tarea.nombre }}</span>
-            <span class="task-time">t<sub>i</sub>={{ tarea.tiempo }}</span>
-            <span class="task-window">[{{ tarea.inicio }} → {{ tarea.fin }}]</span>
-          </div>
-          {% endfor %}
-        {% else %}
-          <p class="empty-hint">Sin tareas asignadas.</p>
-        {% endif %}
-      </div>
+      {% if not loop.last %}
+      <div class="queue-arrow">➔</div>
+      {% endif %}
       {% endfor %}
     </div>
   </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">📥</div>
+    <p class="empty-title">No hay tareas en la cola</p>
+    <p class="empty-desc">Agregue tareas con el formulario superior o presione «Cargar Ejemplo con Llegadas» para ver la simulación.</p>
+  </div>
   {% endif %}
+</div>
+
+<!-- ================================================================= -->
+<!-- CRONOGRAMA / LÍNEA DE TIEMPO DE EJECUCIÓN                         -->
+<!-- ================================================================= -->
+{% if resultado %}
+<div class="card gantt-section">
+  <div class="card-header">
+    <div class="card-title-group">
+      <span class="section-icon">📈</span>
+      <h2 class="card-title">Cronograma de Ejecución en Procesadores</h2>
+    </div>
+    <div class="gantt-badges">
+      <span class="badge badge-primary">Tiempo Promedio: {{ resultado.promedio }} u.</span>
+      <span class="badge badge-success">Tiempo Total (Makespan): {{ resultado.makespan }} u.</span>
+    </div>
+  </div>
+
+  <p class="section-desc">
+    Línea de tiempo proporcional. Si un procesador está libre pero la siguiente tarea aún no ha llegado, se produce una espera hasta su instante <em>r</em><sub>i</sub>:
+  </p>
+
+  <div class="gantt-container">
+    <div class="gantt-tracks">
+      {% for proc_id, lista in resultado.procesadores.items() %}
+      <div class="gantt-row">
+        <div class="gantt-proc-label">
+          <span class="proc-icon">⚡</span>
+          <span>Proc {{ proc_id }}</span>
+        </div>
+        <div class="gantt-track">
+          {% if lista %}
+            {% for tarea in lista %}
+            <div
+              class="gantt-block"
+              style="left: {{ tarea.pct_start }}%; width: {{ tarea.pct_width }}%; background: {{ tarea.color }};"
+              title="{{ tarea.nombre }} | Llegada: {{ tarea.llegada }}u | Duración: {{ tarea.tiempo }}u | Ejecución: [{{ tarea.inicio }} → {{ tarea.fin }}] | Espera: {{ tarea.espera }}u"
+            >
+              <span class="gantt-block-title">{{ tarea.nombre }}</span>
+              <span class="gantt-block-sub">[<em>r</em>={{ tarea.llegada }} | <em>t</em>={{ tarea.tiempo }}] ({{ tarea.inicio }}→{{ tarea.fin }})</span>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="gantt-idle">Procesador inactivo</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Eje de tiempo horizontal -->
+    <div class="gantt-axis-row">
+      <div class="gantt-proc-label-placeholder">Tiempo (u.)</div>
+      <div class="gantt-axis">
+        {% for t in resultado.marcas_tiempo %}
+        <div class="gantt-tick" style="left: {{ (t / (resultado.makespan or 1)) * 100 }}%;">
+          <span class="gantt-tick-line"></span>
+          <span class="gantt-tick-label">{{ t }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Desglose por Procesador -->
+  <div class="proc-summary-grid">
+    {% for proc_id, lista in resultado.procesadores.items() %}
+    <div class="proc-summary-card">
+      <div class="proc-summary-header">
+        <strong>Procesador {{ proc_id }}</strong>
+        <span class="badge">{{ lista|length }} tareas</span>
+      </div>
+      <div class="proc-tasks-chips">
+        {% for t in lista %}
+        <div class="task-chip" style="border-left: 4px solid {{ t.color }};">
+          <div class="chip-name">{{ t.nombre }}</div>
+          <div class="chip-time">
+            🕒 Llegada: <strong>{{ t.llegada }}</strong> | ⏱️ Duración: <strong>{{ t.tiempo }}</strong>
+          </div>
+          <div class="chip-meta">
+            <span>Intervalo: [{{ t.inicio }} → {{ t.fin }}]</span> &bull; 
+            <span>Espera: <strong>{{ t.espera }}</strong> u.</span>
+          </div>
+        </div>
+        {% else %}
+        <div class="chip-empty">Sin asignaciones</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Bitácora Paso a Paso del Algoritmo -->
+  <div class="trace-section">
+    <h3 class="trace-title">🔍 Bitácora Detallada de Asignación Paso a Paso</h3>
+    <div class="table-responsive">
+      <table class="trace-table">
+        <thead>
+          <tr>
+            <th>Paso</th>
+            <th>Tarea (SJF)</th>
+            <th>Hora Llegada (<em>r</em><sub>i</sub>)</th>
+            <th>Duración (<em>t</em><sub>i</sub>)</th>
+            <th>Procesador</th>
+            <th>Inicio (<em>I</em><sub>i</sub>)</th>
+            <th>Fin (<em>C</em><sub>i</sub>)</th>
+            <th>T. Espera (<em>W</em><sub>i</sub>)</th>
+            <th>T. Total (<em>C</em><sub>i</sub> - <em>r</em><sub>i</sub>)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in resultado.pasos %}
+          <tr>
+            <td><strong>#{{ p.paso }}</strong></td>
+            <td>
+              <span class="task-pill" style="background-color: {{ p.color }}; color: white;">
+                {{ p.tarea }}
+              </span>
+            </td>
+            <td><strong>{{ p.llegada }} u.</strong></td>
+            <td>{{ p.tiempo }} u.</td>
+            <td>Procesador {{ p.procesador }}</td>
+            <td>{{ p.inicio }} u.</td>
+            <td><strong style="color: #16a34a;">{{ p.fin }} u.</strong></td>
+            <td>
+              <span class="wait-pill {{ 'zero' if p.espera == 0 else '' }}">
+                {{ p.espera }} u.
+              </span>
+            </td>
+            <td><strong>{{ p.retorno }} u.</strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 {% endblock %}
+
+

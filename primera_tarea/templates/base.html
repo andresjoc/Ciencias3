@@ -2,29 +2,15 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <title>{% block title %}Ciencias de la Computación 3 - Ejercicios{% endblock %}</title>
-
-    <!-- Enlace al archivo CSS externo mediante Flask -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Colas de Prioridad - Planificación SJF / SPT{% endblock %}</title>
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='style.css') }}"
     />
   </head>
   <body>
-    <div class="main-card">
-
-      <!-- Barra de navegación: permite cambiar entre los ejercicios -->
-      <nav class="nav-bar">
-        <a
-          href="{{ url_for('index') }}"
-          class="nav-btn {{ 'active' if active_page == 'pila' else '' }}"
-        >📚 TDA Pila</a>
-        <a
-          href="{{ url_for('colas') }}"
-          class="nav-btn {{ 'active' if active_page == 'colas' else '' }}"
-        >🧮 Colas: Planificación de Tareas</a>
-      </nav>
-
+    <div class="app-container">
       {% block content %}{% endblock %}
     </div>
   </body>
