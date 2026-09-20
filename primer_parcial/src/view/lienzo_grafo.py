@@ -692,8 +692,9 @@ class LienzoGrafo(QGraphicsView):
         transiciones: dict,
         estado_inicial: Optional[str],
         estados_aceptacion: Set[str],
+        posiciones_restauradas: Optional[Dict[str, Tuple[float, float]]] = None,
     ) -> None:
-        """Sincroniza el lienzo cuando el modelo cambia externamente (ej. tabla)."""
+        """Sincroniza el lienzo cuando el modelo cambia externamente (ej. tabla o deshacer)."""
         # 1. Eliminar nodos que ya no están en Q
         for n_existente in list(self.nodos.keys()):
             if n_existente not in estados:
@@ -701,19 +702,24 @@ class LienzoGrafo(QGraphicsView):
                 self._escena.removeItem(nodo)
                 del self.nodos[n_existente]
 
-        # 2. Agregar nodos nuevos preservando la posición de los existentes
-        posiciones_existentes = {n: (item.pos().x(), item.pos().y()) for n, item in self.nodos.items()}
+        # 2. Agregar nodos nuevos preservando o restaurando posiciones
         for i, nombre in enumerate(estados):
             if nombre in self.nodos:
                 nodo = self.nodos[nombre]
                 nodo.establecer_es_inicial(nombre == estado_inicial)
                 nodo.establecer_es_aceptacion(nombre in estados_aceptacion)
+                if posiciones_restauradas and nombre in posiciones_restauradas:
+                    px, py = posiciones_restauradas[nombre]
+                    nodo.setPos(px, py)
             else:
-                # Posición inicial automática
-                angulo = 2 * math.pi * i / max(1, len(estados))
-                radio = 140.0
-                x = radio * math.cos(angulo)
-                y = radio * math.sin(angulo)
+                # Posición restaurada o posición automática circular
+                if posiciones_restauradas and nombre in posiciones_restauradas:
+                    x, y = posiciones_restauradas[nombre]
+                else:
+                    angulo = 2 * math.pi * i / max(1, len(estados))
+                    radio = 140.0
+                    x = radio * math.cos(angulo)
+                    y = radio * math.sin(angulo)
                 self.agregar_nodo_visual(
                     nombre=nombre,
                     x=x,

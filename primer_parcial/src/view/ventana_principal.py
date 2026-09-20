@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QFrame,
     QGroupBox,
@@ -34,6 +35,9 @@ class VentanaPrincipal(QMainWindow):
         - Pestaña 1: Simulador de Cinta y Traza paso a paso (PanelSimulacion).
         - Pestaña 2: Matriz editable de Transiciones (TablaTransiciones).
     """
+
+    deshacer_solicitado = pyqtSignal()
+    rehacer_solicitado = pyqtSignal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -82,7 +86,6 @@ class VentanaPrincipal(QMainWindow):
 
         # Conectar barra de herramientas con el lienzo del grafo
         self.barra_herramientas_grafo.modo_cambiado.connect(self.lienzo_grafo.establecer_modo)
-        self.barra_herramientas_grafo.auto_organizar_solicitado.connect(self.lienzo_grafo.auto_organizar_nodos)
         self.barra_herramientas_grafo.limpiar_solicitado.connect(self.lienzo_grafo.limpiar_grafo)
         self.barra_herramientas_grafo.zoom_acercar_solicitado.connect(self.lienzo_grafo.zoom_acercar)
         self.barra_herramientas_grafo.zoom_alejar_solicitado.connect(self.lienzo_grafo.zoom_alejar)
@@ -90,7 +93,19 @@ class VentanaPrincipal(QMainWindow):
         self.barra_herramientas_grafo.ayuda_solicitada.connect(
             lambda: self.pestanas_derecha.setCurrentWidget(self.panel_guia_uso)
         )
+        self.barra_herramientas_grafo.deshacer_solicitado.connect(self.deshacer_solicitado.emit)
+        self.barra_herramientas_grafo.rehacer_solicitado.connect(self.rehacer_solicitado.emit)
         self.lienzo_grafo.mensaje_solicitado.connect(self.mostrar_mensaje_estado)
+
+        # Atajos de teclado globales para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y / Ctrl+Shift+Z)
+        self._atajo_deshacer = QShortcut(QKeySequence.StandardKey.Undo, self)
+        self._atajo_deshacer.activated.connect(self.deshacer_solicitado.emit)
+
+        self._atajo_rehacer = QShortcut(QKeySequence.StandardKey.Redo, self)
+        self._atajo_rehacer.activated.connect(self.rehacer_solicitado.emit)
+
+        self._atajo_rehacer_alt = QShortcut(QKeySequence("Ctrl+Shift+Z"), self)
+        self._atajo_rehacer_alt.activated.connect(self.rehacer_solicitado.emit)
 
         # --- Panel Derecho: Pestañas con Guía, Simulación de Cinta y Matriz de Transiciones ---
         self.pestanas_derecha = QTabWidget()

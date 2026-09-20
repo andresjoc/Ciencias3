@@ -37,6 +37,7 @@ class TablaTransiciones(QGroupBox):
     transicion_modificada = pyqtSignal(str, str, str)
     estado_agregado = pyqtSignal(str, bool, bool)
     estado_eliminado = pyqtSignal(str)
+    conversion_dfa_solicitada = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Tabla de Transiciones (δ)", parent)
@@ -84,6 +85,18 @@ class TablaTransiciones(QGroupBox):
         self.boton_eliminar_estado.setToolTip("Eliminar de la matriz y del autómata el estado seleccionado.")
         self.boton_eliminar_estado.clicked.connect(self._al_eliminar_estado)
         layout_gestion_estados.addWidget(self.boton_eliminar_estado)
+
+        self.boton_convertir_dfa = QPushButton("⚡ Convertir AFN a AFD")
+        self.boton_convertir_dfa.setStyleSheet(
+            "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; font-weight: bold; }"
+            "QPushButton:hover { background-color: #6d28d9; }"
+        )
+        self.boton_convertir_dfa.setToolTip(
+            "Sección Matriz: Convertir este AFN a AFD determinista mostrando la tabla de proceso de subconjuntos."
+        )
+        self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
+        self.boton_convertir_dfa.setVisible(False)
+        layout_gestion_estados.addWidget(self.boton_convertir_dfa)
 
         layout_principal.addLayout(layout_gestion_estados)
 
@@ -221,6 +234,20 @@ class TablaTransiciones(QGroupBox):
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 self.tabla.setItem(fila, col, item)
 
+        es_nfa = False
+        for trans_estado in transiciones.values():
+            for destino in trans_estado.values():
+                if isinstance(destino, (set, list)) and len(destino) > 1:
+                    es_nfa = True
+                    break
+            if es_nfa:
+                break
+
+        self.boton_convertir_dfa.setVisible(es_nfa)
+        self._es_nfa_actual = es_nfa
+        if not self.etiqueta_estado_tabla.text().startswith("⚠"):
+            self.limpiar_advertencia()
+
         self._actualizando_internamente = False
 
     def mostrar_advertencia(self, mensaje: str) -> None:
@@ -233,6 +260,7 @@ class TablaTransiciones(QGroupBox):
     def limpiar_advertencia(self) -> None:
         """Restaura el mensaje predeterminado de la tabla."""
         self.etiqueta_estado_tabla.setStyleSheet("color: #475569; font-size: 11px;")
+        tipo_str = " | ⚡ Tipo: Autómata No Determinista (AFN)" if getattr(self, "_es_nfa_actual", False) else " | Tipo: Autómata Determinista (AFD)"
         self.etiqueta_estado_tabla.setText(
-            "Convención: → estado inicial | * estado de aceptación"
+            f"Convención: → estado inicial | * estado de aceptación{tipo_str}"
         )

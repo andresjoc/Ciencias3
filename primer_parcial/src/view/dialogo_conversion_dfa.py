@@ -1,0 +1,498 @@
+"""Diálogo interactivo que muestra el Procedimiento de Conversión de AFN a AFD tal cual la guía del profesor."""
+
+from __future__ import annotations
+from typing import List, Optional
+
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QHBoxLayout,
+    QHeaderView,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QTabWidget,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
+
+from src.model.automata_nfa import AutomataNFA
+from src.model.conversion_nfa_dfa import (
+    ConvertidorSubconjuntos,
+    FilaMapeoKn,
+    ResultadoConversionMetodoProfe,
+)
+
+
+class DialogoConversionDFA(QDialog):
+    """Muestra el Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos del Profesor).
+
+    Sigue estrictamente la estructura descrita en 'guiiadeconversionAFNtoAFN.md':
+    - Paso 1: Tabla 1 - Transiciones del AFN inicial
+    - Paso 2: Tabla 2 - Expansión de estados compuestos
+    - Paso 3: Tabla de renombrado a la notación Kn
+    - Paso 4: «Regla de Oro» y Tabla 3 formalizada con columna '¿Es Final?'
+    - Paso 5: Instrucciones de dibujo ("Pintar")
+    - Paso 6: Rastreo de accesibilidad, poda de inalcanzables y Tabla 4 final simplificada.
+    """
+
+    aplicar_afd_solicitado = pyqtSignal(object)
+
+    def __init__(
+        self,
+        nfa: AutomataNFA,
+        parent: Optional[QWidget] = None,
+    ) -> None:
+        super().__init__(parent)
+        self.nfa = nfa
+        self.resultado: Optional[ResultadoConversionMetodoProfe] = None
+
+        self.setWindowTitle("Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos del Profesor)")
+        self.resize(980, 680)
+        self.setMinimumSize(840, 520)
+
+        self._calcular_conversion()
+        self._inicializar_ui()
+
+    def _calcular_conversion(self) -> None:
+        """Ejecuta el algoritmo del profesor sobre el AFN."""
+        self.resultado = ConvertidorSubconjuntos.convertir(self.nfa)
+
+    def _inicializar_ui(self) -> None:
+        layout_principal = QVBoxLayout(self)
+        layout_principal.setContentsMargins(16, 14, 16, 14)
+        layout_principal.setSpacing(10)
+
+        # 1. Cabecera formal
+        marco_cabecera = QFrame()
+        marco_cabecera.setStyleSheet(
+            "QFrame { background-color: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 10px; }"
+        )
+        layout_cab = QVBoxLayout(marco_cabecera)
+        layout_cab.setSpacing(4)
+
+        titulo = QLabel("Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos)")
+        titulo.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
+        titulo.setStyleSheet("color: #0f172a;")
+        layout_cab.addWidget(titulo)
+
+        subtitulo = QLabel(
+            "Equivalencia por estados Kn (K₀, K₁, K₂...) y aplicación de la «Regla de Oro» para estados de aceptación."
+        )
+        subtitulo.setStyleSheet("color: #475569; font-size: 11px;")
+        layout_cab.addWidget(subtitulo)
+
+        if self.resultado:
+            res = self.resultado
+            q_orig_str = "{" + ", ".join(res.estados_nfa_originales) + "}"
+            f_orig_str = "{" + ", ".join(sorted(res.estados_aceptacion_nfa)) + "}" if res.estados_aceptacion_nfa else "∅"
+            resumen = QLabel(
+                f"AFN Base: Q = {q_orig_str} | Σ = {{{', '.join(res.alfabeto)}}} | Estado inicial = → {res.estado_inicial_nfa} | Finales F = {f_orig_str}"
+            )
+            resumen.setStyleSheet("color: #0369a1; font-weight: 600; font-size: 11px; margin-top: 2px;")
+            layout_cab.addWidget(resumen)
+
+        layout_principal.addWidget(marco_cabecera)
+
+        # 2. Pestañas de pasos del método
+        self.pestanas = QTabWidget()
+        self.pestanas.setStyleSheet(
+            "QTabBar::tab { font-weight: bold; font-size: 11px; padding: 8px 16px; }"
+            "QTabBar::tab:selected { color: #1d4ed8; border-bottom: 2px solid #2563eb; }"
+        )
+
+        # Pestaña 1: Pasos 1 y 2 (Tablas 1 y 2)
+        self.pestanas.addTab(self._crear_pestana_pasos_1_y_2(), "📋 Pasos 1 y 2: Tablas AFN y Expansión")
+
+        # Pestaña 2: Pasos 3 y 4 (Notación Kn y Regla de Oro)
+        self.pestanas.addTab(self._crear_pestana_pasos_3_y_4(), "🏷️ Pasos 3 y 4: Notación Kn y Regla de Oro")
+
+        # Pestaña 3: Pasos 5 y 6 (Poda de Inalcanzables y Tabla 4 Final)
+        self.pestanas.addTab(self._crear_pestana_pasos_5_y_6(), "🎯 Pasos 5 y 6: Grafo y AFD Final Simplificado")
+
+        layout_principal.addWidget(self.pestanas, stretch=1)
+
+        # 3. Barra de botones inferior
+        layout_botones = QHBoxLayout()
+        layout_botones.setSpacing(10)
+
+        etiqueta_info = QLabel("Puede inspeccionar cada paso de la demostración formal en las pestañas superiores.")
+        etiqueta_info.setStyleSheet("color: #64748b; font-size: 11px;")
+        layout_botones.addWidget(etiqueta_info)
+
+        layout_botones.addStretch()
+
+        self.boton_aplicar = QPushButton("✔ Aplicar AFD al Editor y Matriz (Notación Kn)")
+        self.boton_aplicar.setStyleSheet(
+            "QPushButton { background-color: #0284c7; color: white; font-weight: bold; "
+            "padding: 8px 18px; border-radius: 6px; font-size: 12px; }"
+            "QPushButton:hover { background-color: #0369a1; }"
+            "QPushButton:pressed { background-color: #075985; }"
+        )
+        self.boton_aplicar.setToolTip(
+            "Sustituye el autómata actual por el AFD final simplificado en notación Kn (Tabla 4),\n"
+            "actualizando inmediatamente el lienzo gráfico con distribución circular y la matriz de transiciones."
+        )
+        self.boton_aplicar.clicked.connect(self._al_aplicar_afd)
+        layout_botones.addWidget(self.boton_aplicar)
+
+        self.boton_cerrar = QPushButton("Cerrar")
+        self.boton_cerrar.setStyleSheet(
+            "QPushButton { background-color: #e2e8f0; color: #334155; font-weight: 500; "
+            "padding: 8px 16px; border-radius: 6px; font-size: 12px; }"
+            "QPushButton:hover { background-color: #cbd5e1; }"
+        )
+        self.boton_cerrar.clicked.connect(self.reject)
+        layout_botones.addWidget(self.boton_cerrar)
+
+        layout_principal.addLayout(layout_botones)
+
+    # ==========================================================================
+    # Construcción de Pestañas
+    # ==========================================================================
+
+    def _crear_pestana_pasos_1_y_2(self) -> QWidget:
+        """Paso 1: Tabla 1 (AFN original) y Paso 2: Tabla 2 (Expansión de compuestos)."""
+        contenedor = QWidget()
+        layout = QVBoxLayout(contenedor)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(14)
+
+        if not self.resultado:
+            return contenedor
+
+        res = self.resultado
+
+        # --- SECCIÓN PASO 1 ---
+        lbl_p1 = QLabel("Paso 1: Construcción de la tabla de transiciones original del AFN")
+        lbl_p1.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p1.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p1)
+
+        txt_p1 = QLabel(
+            "• Columnas: símbolos de entrada Σ. Filas: estados del AFN.\n"
+            "• Flecha (→): estado inicial. Asterisco (*): estados de aceptación originales.\n"
+            "• Múltiples destinos se agrupan entre llaves {q₁, q₂}. Sin transición se representa con el conjunto vacío (∅)."
+        )
+        txt_p1.setStyleSheet("color: #475569; font-size: 11px;")
+        layout.addWidget(txt_p1)
+
+        lbl_t1 = QLabel("Tabla 1: Transiciones del AFN inicial")
+        lbl_t1.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        lbl_t1.setStyleSheet("color: #0369a1;")
+        layout.addWidget(lbl_t1)
+
+        tabla1 = self._crear_tabla_estilizada(
+            columnas=["Estado Δ"] + [f"Entrada {s}" for s in res.alfabeto],
+            num_filas=len(res.tabla1_afn),
+        )
+        for fila_idx, fila in enumerate(res.tabla1_afn):
+            it_est = QTableWidgetItem(fila.estado_con_prefijo)
+            it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            if fila.es_aceptacion:
+                it_est.setForeground(QColor("#059669"))
+            if fila.es_inicial:
+                it_est.setForeground(QColor("#0284c7"))
+            tabla1.setItem(fila_idx, 0, it_est)
+
+            for c_idx, sim in enumerate(res.alfabeto, start=1):
+                dest = fila.transiciones.get(sim, set())
+                texto = "{" + ", ".join(sorted(dest)) + "}" if dest else "∅"
+                it_d = QTableWidgetItem(texto)
+                it_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                tabla1.setItem(fila_idx, c_idx, it_d)
+        layout.addWidget(tabla1)
+
+        layout.addSpacing(6)
+
+        # --- SECCIÓN PASO 2 ---
+        lbl_p2 = QLabel("Paso 2: Generar y evaluar nuevos estados compuestos")
+        lbl_p2.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p2.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p2)
+
+        txt_p2 = QLabel(
+            "Al existir salidas con conjuntos de múltiples estados (ej. {q₁, q₂}), estos se tratan como estados individuales\n"
+            "del nuevo autómata, calculando la unión de sus transiciones: δ(q₁, σ) ∪ δ(q₂, σ)."
+        )
+        txt_p2.setStyleSheet("color: #475569; font-size: 11px;")
+        layout.addWidget(txt_p2)
+
+        lbl_t2 = QLabel("Tabla 2: Expansión de estados compuestos")
+        lbl_t2.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        lbl_t2.setStyleSheet("color: #0369a1;")
+        layout.addWidget(lbl_t2)
+
+        tabla2 = self._crear_tabla_estilizada(
+            columnas=["Estado Δ"] + [f"Entrada {s}" for s in res.alfabeto],
+            num_filas=len(res.tabla2_expansion),
+        )
+        for fila_idx, fila in enumerate(res.tabla2_expansion):
+            it_est = QTableWidgetItem(fila.nombre_visual)
+            it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            if fila.es_compuesto:
+                it_est.setForeground(QColor("#7c3aed"))
+            elif fila.es_aceptacion:
+                it_est.setForeground(QColor("#059669"))
+            tabla2.setItem(fila_idx, 0, it_est)
+
+            for c_idx, sim in enumerate(res.alfabeto, start=1):
+                dest = fila.transiciones.get(sim, set())
+                texto = "{" + ", ".join(sorted(dest)) + "}" if dest else "∅"
+                it_d = QTableWidgetItem(texto)
+                it_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                tabla2.setItem(fila_idx, c_idx, it_d)
+        layout.addWidget(tabla2)
+
+        # Envolver en área desplazable
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(contenedor)
+        return scroll
+
+    def _crear_pestana_pasos_3_y_4(self) -> QWidget:
+        """Paso 3: Notación Kn y Paso 4: Regla de Oro para estados finales (Tabla 3)."""
+        contenedor = QWidget()
+        layout = QVBoxLayout(contenedor)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(14)
+
+        if not self.resultado:
+            return contenedor
+
+        res = self.resultado
+
+        # --- SECCIÓN PASO 3 ---
+        lbl_p3 = QLabel("Paso 3: Renombrar estados a la notación Kn")
+        lbl_p3.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p3.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p3)
+
+        txt_p3 = QLabel(
+            "Para simplificar la manipulación algebraica y gráfica, se asigna una etiqueta Kn a cada estado simple o compuesto:"
+        )
+        txt_p3.setStyleSheet("color: #475569; font-size: 11px;")
+        layout.addWidget(txt_p3)
+
+        # Tabla de equivalencias Kn
+        tabla_kn = self._crear_tabla_estilizada(
+            columnas=["Etiqueta Kn", "Conjunto equivalente"],
+            num_filas=len(res.mapeo_kn),
+        )
+        for fila_idx, f in enumerate(res.mapeo_kn):
+            it_k = QTableWidgetItem(f.etiqueta)
+            it_k.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_k.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            tabla_kn.setItem(fila_idx, 0, it_k)
+
+            it_c = QTableWidgetItem(f.subconjunto_formateado)
+            it_c.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            tabla_kn.setItem(fila_idx, 1, it_c)
+        layout.addWidget(tabla_kn)
+
+        layout.addSpacing(6)
+
+        # --- SECCIÓN PASO 4 ---
+        lbl_p4 = QLabel("Paso 4: Aplicar la «Regla de Oro» para identificar estados finales en Kn")
+        lbl_p4.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p4.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p4)
+
+        # Marco destacado para la Regla de Oro
+        marco_regla = QFrame()
+        marco_regla.setStyleSheet(
+            "QFrame { background-color: #fefce8; border: 1.5px solid #facc15; border-radius: 6px; padding: 8px; }"
+        )
+        layout_regla = QVBoxLayout(marco_regla)
+        txt_regla = QLabel(
+            "⭐ Regla de Oro: Un estado Kn es un estado final (de aceptación) si y solo si contiene al menos uno "
+            "de los estados finales del AFN original.\n"
+            "Kn ∈ F_AFD ⟺ Kn ∩ F_AFN ≠ ∅"
+        )
+        txt_regla.setStyleSheet("color: #854d0e; font-weight: bold; font-size: 11px;")
+        layout_regla.addWidget(txt_regla)
+
+        f_afn_str = "{" + ", ".join(sorted(res.estados_aceptacion_nfa)) + "}"
+        txt_f_afn = QLabel(f"Estados finales originales del AFN: F_AFN = {f_afn_str}")
+        txt_f_afn.setStyleSheet("color: #713f12; font-size: 11px;")
+        layout_regla.addWidget(txt_f_afn)
+        layout.addWidget(marco_regla)
+
+        # Listado de justificaciones de la Regla de Oro
+        for f in res.mapeo_kn:
+            lbl_item = QLabel(f"• {f.etiqueta} = {f.subconjunto_formateado}: {f.motivo_final} ➔ {f.explicacion_regla_oro}")
+            if f.es_final:
+                lbl_item.setStyleSheet("color: #059669; font-weight: 600; font-size: 11px;")
+            else:
+                lbl_item.setStyleSheet("color: #64748b; font-size: 11px;")
+            layout.addWidget(lbl_item)
+
+        lbl_t3 = QLabel("Tabla 3: Transiciones formalizada en términos de Kn")
+        lbl_t3.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        lbl_t3.setStyleSheet("color: #0369a1; margin-top: 6px;")
+        layout.addWidget(lbl_t3)
+
+        tabla3 = self._crear_tabla_estilizada(
+            columnas=["Estado"] + list(res.alfabeto) + ["¿Es Final?"],
+            num_filas=len(res.tabla3_formalizada),
+        )
+        for fila_idx, f in enumerate(res.tabla3_formalizada):
+            it_est = QTableWidgetItem(f.estado_con_prefijo)
+            it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            if f.es_final:
+                it_est.setForeground(QColor("#059669"))
+            if f.es_inicial:
+                it_est.setForeground(QColor("#0284c7"))
+            tabla3.setItem(fila_idx, 0, it_est)
+
+            for c_idx, sim in enumerate(res.alfabeto, start=1):
+                dest_k = f.transiciones_kn.get(sim)
+                texto = dest_k if dest_k else "∅"
+                it_d = QTableWidgetItem(texto)
+                it_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                tabla3.setItem(fila_idx, c_idx, it_d)
+
+            # Columna ¿Es Final?
+            it_fin = QTableWidgetItem(f.explicacion_regla_oro)
+            it_fin.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_fin.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold if f.es_final else QFont.Weight.Normal))
+            if f.es_final:
+                it_fin.setForeground(QColor("#059669"))
+            else:
+                it_fin.setForeground(QColor("#64748b"))
+            tabla3.setItem(fila_idx, len(res.alfabeto) + 1, it_fin)
+
+        layout.addWidget(tabla3)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(contenedor)
+        return scroll
+
+    def _crear_pestana_pasos_5_y_6(self) -> QWidget:
+        """Paso 5: Instrucciones de Pintado y Paso 6: Accesibilidad y Tabla 4 Final Simplificada."""
+        contenedor = QWidget()
+        layout = QVBoxLayout(contenedor)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(14)
+
+        if not self.resultado:
+            return contenedor
+
+        res = self.resultado
+
+        # --- SECCIÓN PASO 5 ---
+        lbl_p5 = QLabel("Paso 5: Dibujar el grafo del AFD (\"Pintar\")")
+        lbl_p5.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p5.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p5)
+
+        txt_p5 = QLabel(
+            "1. Se traza el estado inicial → (K₀).\n"
+            "2. Se representan los estados finales de aceptación con doble círculo concéntrico.\n"
+            "3. Se grafican las flechas rotuladas con las entradas siguiendo la matriz de transiciones formal."
+        )
+        txt_p5.setStyleSheet("color: #475569; font-size: 11px;")
+        layout.addWidget(txt_p5)
+
+        layout.addSpacing(6)
+
+        # --- SECCIÓN PASO 6 ---
+        lbl_p6 = QLabel("Paso 6: Identificar y podar estados inalcanzables")
+        lbl_p6.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+        lbl_p6.setStyleSheet("color: #1e293b;")
+        layout.addWidget(lbl_p6)
+
+        txt_p6 = QLabel(
+            "Rastreo de accesibilidad partiendo del estado inicial (K₀):\n"
+            "Aquellos estados a los que ningún camino parte desde el estado inicial quedan aislados y se eliminan."
+        )
+        txt_p6.setStyleSheet("color: #475569; font-size: 11px;")
+        layout.addWidget(txt_p6)
+
+        # Marco con el análisis de accesibilidad
+        marco_acc = QFrame()
+        marco_acc.setStyleSheet(
+            "QFrame { background-color: #f0fdf4; border: 1.5px solid #86efac; border-radius: 6px; padding: 8px; }"
+        )
+        layout_acc = QVBoxLayout(marco_acc)
+        layout_acc.setSpacing(3)
+
+        for paso_txt in res.accesibilidad.recorrido_pasos:
+            lbl_paso = QLabel(f"• {paso_txt}")
+            lbl_paso.setStyleSheet("color: #166534; font-size: 11px;")
+            layout_acc.addWidget(lbl_paso)
+        layout.addWidget(marco_acc)
+
+        if res.accesibilidad.estados_inalcanzables:
+            lbl_poda = QLabel(
+                f"✂ Estados inalcanzables podados: {', '.join(res.accesibilidad.estados_inalcanzables)}"
+            )
+            lbl_poda.setStyleSheet("color: #b91c1c; font-weight: bold; font-size: 11px;")
+            layout.addWidget(lbl_poda)
+
+        lbl_t4 = QLabel("Tabla 4: AFD final simplificado y mínimo")
+        lbl_t4.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        lbl_t4.setStyleSheet("color: #0369a1; margin-top: 6px;")
+        layout.addWidget(lbl_t4)
+
+        tabla4 = self._crear_tabla_estilizada(
+            columnas=["Estado"] + [f"Entrada {s}" for s in res.alfabeto],
+            num_filas=len(res.tabla4_final),
+        )
+        for fila_idx, f in enumerate(res.tabla4_final):
+            it_est = QTableWidgetItem(f.estado_con_prefijo)
+            it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            if f.es_final:
+                it_est.setForeground(QColor("#059669"))
+            if f.es_inicial:
+                it_est.setForeground(QColor("#0284c7"))
+            tabla4.setItem(fila_idx, 0, it_est)
+
+            for c_idx, sim in enumerate(res.alfabeto, start=1):
+                dest_k = f.transiciones_kn.get(sim)
+                texto = dest_k if dest_k else "∅"
+                it_d = QTableWidgetItem(texto)
+                it_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                tabla4.setItem(fila_idx, c_idx, it_d)
+        layout.addWidget(tabla4)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(contenedor)
+        return scroll
+
+    # ==========================================================================
+    # Utilidades Visuales
+    # ==========================================================================
+
+    def _crear_tabla_estilizada(self, columnas: List[str], num_filas: int) -> QTableWidget:
+        """Crea y estiliza un QTableWidget idéntico a las matrices del apunte."""
+        tabla = QTableWidget()
+        tabla.setColumnCount(len(columnas))
+        tabla.setHorizontalHeaderLabels(columnas)
+        tabla.setRowCount(num_filas)
+        tabla.setAlternatingRowColors(True)
+        tabla.setStyleSheet(
+            "QTableWidget { gridline-color: #e2e8f0; font-size: 11px; background-color: #ffffff; }"
+            "QHeaderView::section { background-color: #f1f5f9; font-weight: bold; color: #1e293b; padding: 5px; }"
+        )
+        tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        # Altura fija adecuada según filas
+        altura_calculada = min(220, 36 + num_filas * 28)
+        tabla.setMinimumHeight(altura_calculada)
+        return tabla
+
+    def _al_aplicar_afd(self) -> None:
+        """Aplica el AFD final simplificado al controlador y cierra el diálogo."""
+        if self.resultado:
+            self.aplicar_afd_solicitado.emit(self.resultado)
+            self.accept()

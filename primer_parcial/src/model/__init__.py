@@ -8,6 +8,11 @@ from src.model.automata_nfa import (
     RamaTrazaNFA,
     ResultadoTrazaNFA,
 )
+from src.model.conversion_nfa_dfa import (
+    ConvertidorSubconjuntos,
+    FilaProcesoSubconjuntos,
+    ResultadoConversionDFA,
+)
 
 __all__ = [
     "Alfabeto",
@@ -20,4 +25,7 @@ __all__ = [
     "PasoRamaNFA",
     "RamaTrazaNFA",
     "ResultadoTrazaNFA",
+    "ConvertidorSubconjuntos",
+    "FilaProcesoSubconjuntos",
+    "ResultadoConversionDFA",
 ]

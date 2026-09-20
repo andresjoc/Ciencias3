@@ -28,6 +28,9 @@ class BarraHerramientasGrafo(QFrame):
     zoom_acercar_solicitado = pyqtSignal()
     zoom_alejar_solicitado = pyqtSignal()
     zoom_restablecer_solicitado = pyqtSignal()
+    conversion_dfa_solicitada = pyqtSignal()
+    deshacer_solicitado = pyqtSignal()
+    rehacer_solicitado = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -101,6 +104,21 @@ class BarraHerramientasGrafo(QFrame):
         self.grupo_botones.addButton(self.boton_borrar)
         layout.addWidget(self.boton_borrar)
 
+        layout.addSpacing(6)
+
+        # Botones de Historial: Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y)
+        self.boton_deshacer = QPushButton("↶ Deshacer")
+        self.boton_deshacer.setToolTip("Deshacer última acción (Ctrl+Z).\nPermite revertir creaciones, eliminaciones o conversiones.")
+        self.boton_deshacer.setEnabled(False)
+        self.boton_deshacer.clicked.connect(self.deshacer_solicitado.emit)
+        layout.addWidget(self.boton_deshacer)
+
+        self.boton_rehacer = QPushButton("↷ Rehacer")
+        self.boton_rehacer.setToolTip("Rehacer acción deshecha (Ctrl+Y / Ctrl+Shift+Z).")
+        self.boton_rehacer.setEnabled(False)
+        self.boton_rehacer.clicked.connect(self.rehacer_solicitado.emit)
+        layout.addWidget(self.boton_rehacer)
+
         layout.addSpacing(8)
 
         # Controles de Zoom (In / Out / 100%)
@@ -151,6 +169,21 @@ class BarraHerramientasGrafo(QFrame):
 
         layout.addSpacing(8)
 
+        # Botón de Conversión de AFN a AFD (Construcción de Subconjuntos)
+        self.boton_convertir_dfa = QPushButton("⚡ Convertir AFN a AFD")
+        self.boton_convertir_dfa.setStyleSheet(
+            "QPushButton { background-color: #f5f3ff; border: 1.5px solid #c4b5fd; color: #6d28d9; font-weight: bold; }"
+            "QPushButton:hover { background-color: #ede9fe; border-color: #8b5cf6; }"
+        )
+        self.boton_convertir_dfa.setToolTip(
+            "Barra de Herramientas: Conversión de AFN a AFD (Construcción de Subconjuntos).\n"
+            "Convierte el autómata no determinista a determinista mostrando la tabla de proceso paso a paso."
+        )
+        self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
+        layout.addWidget(self.boton_convertir_dfa)
+
+        layout.addSpacing(8)
+
         self.boton_ayuda = QPushButton("📖 ¿Cómo usar el programa?")
         self.boton_ayuda.setStyleSheet(
             "QPushButton { background-color: #eff6ff; border-color: #93c5fd; color: #1d4ed8; font-weight: bold; }"
@@ -173,3 +206,33 @@ class BarraHerramientasGrafo(QFrame):
         """Fuerza la activación del botón de modo selección."""
         self.boton_seleccionar.setChecked(True)
         self.modo_cambiado.emit("seleccion")
+
+    def actualizar_estado_no_deterministico(self, es_nfa: bool) -> None:
+        """Actualiza el aspecto visual del botón de conversión según si el autómata es AFN."""
+        if es_nfa:
+            self.boton_convertir_dfa.setText("⚡ Convertir AFN a AFD")
+            self.boton_convertir_dfa.setStyleSheet(
+                "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; "
+                "font-weight: bold; padding: 6px 14px; border-radius: 6px; font-size: 12px; }"
+                "QPushButton:hover { background-color: #6d28d9; }"
+                "QPushButton:pressed { background-color: #5b21b6; }"
+            )
+            self.boton_convertir_dfa.setToolTip(
+                "¡Autómata No Determinista detectado!\n"
+                "Haz clic para convertir a AFD determinista y ver la tabla de proceso de subconjuntos."
+            )
+        else:
+            self.boton_convertir_dfa.setText("⚡ Convertir a DFA")
+            self.boton_convertir_dfa.setStyleSheet(
+                "QPushButton { background-color: #f8fafc; border: 1px solid #cbd5e1; color: #94a3b8; font-weight: 500; }"
+                "QPushButton:hover { background-color: #f1f5f9; color: #64748b; }"
+            )
+            self.boton_convertir_dfa.setToolTip(
+                "El autómata actual es Determinista (AFD). Si agrega transiciones múltiples se activará la conversión."
+            )
+
+    def actualizar_estado_historial(self, puede_deshacer: bool, puede_rehacer: bool) -> None:
+        """Habilita o deshabilita los botones de deshacer y rehacer según el historial."""
+        self.boton_deshacer.setEnabled(puede_deshacer)
+        self.boton_rehacer.setEnabled(puede_rehacer)
+

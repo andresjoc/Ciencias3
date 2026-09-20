@@ -198,6 +198,36 @@ class AutomataNFA(Automata):
                 nfa.agregar_transicion(origen, simbolo, destino)
         return nfa
 
+    def tiene_transiciones_multiples(self) -> bool:
+        """Retorna True si al menos un par (q, σ) tiene más de un destino formal."""
+        for trans in self._transiciones_nd.values():
+            for destinos in trans.values():
+                if len(destinos) > 1:
+                    return True
+        return False
+
+    def es_no_deterministico(self) -> bool:
+        """Determina si este autómata presenta características no deterministas.
+
+        Se considera no determinista si existe al menos una transición con múltiples
+        destinos (|δ(q, σ)| > 1) o si es un NFA con transiciones ramificadas o incompletas.
+        """
+        if self.tiene_transiciones_multiples():
+            return True
+
+        if self._estados and self._alfabeto.simbolos:
+            for estado in self._estados:
+                for simbolo in self._alfabeto.simbolos:
+                    if not self.obtener_transiciones(estado, simbolo):
+                        return True
+
+        return False
+
+    def convertir_a_dfa(self, incluir_trampa: bool = False):
+        """Convierte este NFA a un DFA equivalente mediante el método de subconjuntos de Rabin-Scott."""
+        from src.model.conversion_nfa_dfa import ConvertidorSubconjuntos
+        return ConvertidorSubconjuntos.convertir(self, incluir_trampa=incluir_trampa)
+
     def evaluar_cadena(self, cadena: str) -> bool:
         """Evalúa si una cadena es aceptada por este NFA.
 

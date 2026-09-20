@@ -397,6 +397,10 @@ class Automata:
             motivo_rechazo=motivo_rechazo,
         )
 
+    def es_no_deterministico(self) -> bool:
+        """Indica si el autómata es no determinista (retorna False para un DFA)."""
+        return False
+
     def convertir_a_nfa(self) -> AutomataNFA:
         """Convierte este DFA en un AutomataNFA equivalente."""
         from src.model.automata_nfa import AutomataNFA
@@ -405,6 +409,7 @@ class Automata:
     def a_diccionario(self) -> dict:
         """Serializa el autómata a un diccionario compatible con formato JSON."""
         return {
+            "tipo": "DFA",
             "alfabeto": self._alfabeto.a_lista(),
             "estados": self.estados,
             "estado_inicial": self._estado_inicial,
@@ -414,7 +419,11 @@ class Automata:
 
     @classmethod
     def desde_diccionario(cls, datos: dict) -> Automata:
-        """Deserializa un autómata a partir de un diccionario."""
+        """Deserializa un autómata (DFA o NFA) a partir de un diccionario."""
+        if datos.get("tipo") == "NFA":
+            from src.model.automata_nfa import AutomataNFA
+            return AutomataNFA.desde_diccionario(datos)
+
         alfabeto = Alfabeto(datos.get("alfabeto", []))
         auto = cls(
             alfabeto=alfabeto,

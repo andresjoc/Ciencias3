@@ -1,14 +1,26 @@
 """Controlador principal de la aplicación para coordinar el Modelo y la Vista."""
 
 from __future__ import annotations
-from typing import List, Optional, Union
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Tuple, Union
 
 from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QMessageBox
 
 from src.model.alfabeto import ErrorAlfabeto
 from src.model.automata import Automata, ErrorAutomata, ResultadoTraza
 from src.model.automata_nfa import AutomataNFA, ResultadoTrazaNFA
+from src.model.conversion_nfa_dfa import ResultadoConversionDFA
+from src.view.dialogo_conversion_dfa import DialogoConversionDFA
 from src.view.ventana_principal import VentanaPrincipal
+
+
+@dataclass
+class SnapshotHistorial:
+    """Snapshot inmutable del estado del autómata y posiciones en el lienzo para Deshacer/Rehacer."""
+    datos_modelo: dict
+    posiciones_nodos: Dict[str, Tuple[float, float]]
+    descripcion: str
 
 
 class ControladorAutomata:
@@ -27,6 +39,11 @@ class ControladorAutomata:
         self._traza_actual: Optional[Union[ResultadoTraza, ResultadoTrazaNFA]] = None
         self._paso_actual: int = 0
         self._sincronizando_grafo = False
+
+        # Pila de historial para operaciones Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y)
+        self._historial_deshacer: List[SnapshotHistorial] = []
+        self._historial_rehacer: List[SnapshotHistorial] = []
+        self._restaurando_historial: bool = False
 
         self._temporizador_animacion = QTimer()
         self._temporizador_animacion.setInterval(450)
@@ -64,6 +81,25 @@ class ControladorAutomata:
             self.vista.lienzo_grafo.transicion_eliminada.connect(self.al_eliminar_transicion_desde_grafo)
             self.vista.lienzo_grafo.grafo_limpiado.connect(self.al_limpiar_grafo_completo)
 
+        # 5. Señales para la conversión de AFN a AFD (Construcción de Subconjuntos)
+        if hasattr(self.vista, "barra_herramientas_grafo"):
+            self.vista.barra_herramientas_grafo.conversion_dfa_solicitada.connect(
+                self.al_solicitar_conversion_a_dfa
+            )
+            self.vista.barra_herramientas_grafo.auto_organizar_solicitado.connect(
+                self.al_auto_organizar_grafo
+            )
+        if hasattr(self.vista, "tabla_transiciones"):
+            self.vista.tabla_transiciones.conversion_dfa_solicitada.connect(
+                self.al_solicitar_conversion_a_dfa
+            )
+
+        # 6. Señales globales para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y / Ctrl+Shift+Z)
+        if hasattr(self.vista, "deshacer_solicitado"):
+            self.vista.deshacer_solicitado.connect(self.deshacer)
+        if hasattr(self.vista, "rehacer_solicitado"):
+            self.vista.rehacer_solicitado.connect(self.rehacer)
+
     def _inicializar_estado_vista(self) -> None:
         """Sincroniza los componentes de la vista con los datos iniciales del modelo."""
         simbolos_iniciales = self.modelo.alfabeto.simbolos
@@ -75,6 +111,7 @@ class ControladorAutomata:
 
         self._sincronizar_tabla()
         self._actualizar_vista_simulacion()
+        self._actualizar_botones_historial()
 
     def _sincronizar_tabla(self) -> None:
         """Actualiza la tabla de transiciones y el grafo con el estado vigente del modelo."""
@@ -100,10 +137,17 @@ class ControladorAutomata:
             finally:
                 self._sincronizando_grafo = False
 
+        # Actualizar botón de conversión a DFA en la barra de herramientas
+        if hasattr(self.vista, "barra_herramientas_grafo"):
+            es_nfa = self.modelo.es_no_deterministico()
+            self.vista.barra_herramientas_grafo.actualizar_estado_no_deterministico(es_nfa)
+
     def al_definir_alfabeto(self, simbolos: List[str]) -> bool:
         """Procesa y valida la actualización del alfabeto formal en el modelo."""
+        snap = self._capturar_snapshot("Cambio de alfabeto")
         try:
             self.modelo.definir_alfabeto(simbolos)
+            self._comprometer_snapshot(snap)
             simbolos_actuales = self.modelo.alfabeto.simbolos
             if hasattr(self.vista, "panel_alfabeto"):
                 self.vista.panel_alfabeto.actualizar_alfabeto(simbolos_actuales)
@@ -121,9 +165,11 @@ class ControladorAutomata:
 
     def al_modificar_transicion(self, origen: str, simbolo: str, destino: str) -> bool:
         """Procesa la modificación manual de una celda en la tabla de transiciones."""
+        snap = self._capturar_snapshot(f"Modificar transición δ({origen}, '{simbolo}')")
         if isinstance(self.modelo, AutomataNFA):
             if not destino:
                 self.modelo.eliminar_transicion(origen, simbolo)
+                self._comprometer_snapshot(snap)
                 if hasattr(self.vista, "tabla_transiciones"):
                     self.vista.tabla_transiciones.limpiar_advertencia()
                 self.vista.mostrar_mensaje_estado(
@@ -151,6 +197,7 @@ class ControladorAutomata:
                 self.modelo.eliminar_transicion(origen, simbolo)
                 for dest in destinos:
                     self.modelo.agregar_transicion(origen, simbolo, dest)
+                self._comprometer_snapshot(snap)
                 if hasattr(self.vista, "tabla_transiciones"):
                     self.vista.tabla_transiciones.limpiar_advertencia()
                 self.vista.mostrar_mensaje_estado(
@@ -169,10 +216,38 @@ class ControladorAutomata:
         # Comportamiento para DFA
         if not destino:
             self.modelo.eliminar_transicion(origen, simbolo)
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.limpiar_advertencia()
             self.vista.mostrar_mensaje_estado(
                 f"Transición indefinida/eliminada: δ({origen}, '{simbolo}') = ∅"
+            )
+            self._sincronizar_tabla()
+            self._limpiar_simulacion()
+            return True
+
+        # Si el usuario ingresó múltiples destinos separados por comas, convertir automáticamente a NFA
+        limpio = destino.replace("{", "").replace("}", "").replace(";", ",")
+        partes = [d.strip() for d in limpio.split(",") if d.strip()]
+        if len(partes) > 1:
+            for dest in partes:
+                if dest not in self.modelo.estados:
+                    mensaje = f"El estado destino '{dest}' no existe en Q: {self.modelo.estados}."
+                    if hasattr(self.vista, "tabla_transiciones"):
+                        self.vista.tabla_transiciones.mostrar_advertencia(mensaje)
+                    self.vista.mostrar_mensaje_estado(f"Validación rechazada: {mensaje}")
+                    self._sincronizar_tabla()
+                    return False
+
+            self.modelo = self.modelo.convertir_a_nfa()
+            self.modelo.eliminar_transicion(origen, simbolo)
+            for dest in partes:
+                self.modelo.agregar_transicion(origen, simbolo, dest)
+            self._comprometer_snapshot(snap)
+            if hasattr(self.vista, "tabla_transiciones"):
+                self.vista.tabla_transiciones.limpiar_advertencia()
+            self.vista.mostrar_mensaje_estado(
+                f"Transición NFA actualizada: δ({origen}, '{simbolo}') = {{{', '.join(sorted(partes))}}}"
             )
             self._sincronizar_tabla()
             self._limpiar_simulacion()
@@ -188,6 +263,7 @@ class ControladorAutomata:
 
         try:
             self.modelo.agregar_transicion(origen, simbolo, destino)
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.limpiar_advertencia()
             self.vista.mostrar_mensaje_estado(
@@ -212,8 +288,10 @@ class ControladorAutomata:
                 )
             return False
 
+        snap = self._capturar_snapshot(f"Agregar estado '{nombre}'")
         try:
             self.modelo.agregar_estado(nombre, es_inicial=es_inicial, es_aceptacion=es_aceptacion)
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.limpiar_advertencia()
             self.vista.mostrar_mensaje_estado(f"Estado '{nombre}' agregado exitosamente a Q.")
@@ -228,8 +306,12 @@ class ControladorAutomata:
 
     def al_eliminar_estado(self, nombre: str) -> bool:
         """Elimina un estado en el modelo y sincroniza la vista."""
+        if nombre not in self.modelo.estados:
+            return False
+        snap = self._capturar_snapshot(f"Eliminar estado '{nombre}'")
         try:
             self.modelo.eliminar_estado(nombre)
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.limpiar_advertencia()
             self.vista.mostrar_mensaje_estado(f"Estado '{nombre}' eliminado de Q.")
@@ -255,8 +337,10 @@ class ControladorAutomata:
         es_aceptacion: bool,
     ) -> None:
         """Registra en el modelo un estado dibujado directamente en el lienzo."""
+        snap = self._capturar_snapshot(f"Crear estado '{nombre}' en lienzo")
         try:
             self.modelo.agregar_estado(nombre, es_inicial=es_inicial, es_aceptacion=es_aceptacion)
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.actualizar_datos(
                     estados=self.modelo.estados,
@@ -277,6 +361,7 @@ class ControladorAutomata:
         es_aceptacion: bool,
     ) -> None:
         """Actualiza atributos inicial/aceptación de un nodo modificado en el lienzo."""
+        snap = self._capturar_snapshot(f"Modificar estado '{nombre}'")
         try:
             if es_inicial:
                 self.modelo.definir_estado_inicial(nombre)
@@ -288,6 +373,7 @@ class ControladorAutomata:
             else:
                 self.modelo.eliminar_estado_aceptacion(nombre)
 
+            self._comprometer_snapshot(snap)
             if hasattr(self.vista, "tabla_transiciones"):
                 self.vista.tabla_transiciones.actualizar_datos(
                     estados=self.modelo.estados,
@@ -303,19 +389,22 @@ class ControladorAutomata:
 
     def al_eliminar_estado_desde_grafo(self, nombre: str) -> None:
         """Elimina del modelo un estado borrado desde el lienzo."""
+        if nombre not in self.modelo.estados:
+            return
+        snap = self._capturar_snapshot(f"Eliminar estado '{nombre}'")
         try:
-            if nombre in self.modelo.estados:
-                self.modelo.eliminar_estado(nombre)
-                if hasattr(self.vista, "tabla_transiciones"):
-                    self.vista.tabla_transiciones.actualizar_datos(
-                        estados=self.modelo.estados,
-                        simbolos=self.modelo.alfabeto.simbolos,
-                        transiciones=self.modelo.transiciones,
-                        estado_inicial=self.modelo.estado_inicial,
-                        estados_aceptacion=self.modelo.estados_aceptacion,
-                    )
-                self._limpiar_simulacion()
-                self.vista.mostrar_mensaje_estado(f"Estado '{nombre}' eliminado.")
+            self.modelo.eliminar_estado(nombre)
+            self._comprometer_snapshot(snap)
+            if hasattr(self.vista, "tabla_transiciones"):
+                self.vista.tabla_transiciones.actualizar_datos(
+                    estados=self.modelo.estados,
+                    simbolos=self.modelo.alfabeto.simbolos,
+                    transiciones=self.modelo.transiciones,
+                    estado_inicial=self.modelo.estado_inicial,
+                    estados_aceptacion=self.modelo.estados_aceptacion,
+                )
+            self._limpiar_simulacion()
+            self.vista.mostrar_mensaje_estado(f"Estado '{nombre}' eliminado.")
         except ErrorAutomata as error:
             self.vista.mostrar_mensaje_estado(f"Error al eliminar estado: {error}")
 
@@ -333,6 +422,7 @@ class ControladorAutomata:
             self._sincronizar_tabla()
             return
 
+        snap = self._capturar_snapshot(f"Crear transición δ({origen}, '{simbolo}') = {destino}")
         try:
             # Si es DFA y ya existe transición a otro destino, convertir a NFA automáticamente
             if not isinstance(self.modelo, AutomataNFA):
@@ -341,6 +431,7 @@ class ControladorAutomata:
                     self.convertir_modelo_a_nfa()
 
             self.modelo.agregar_transicion(origen, simbolo, destino)
+            self._comprometer_snapshot(snap)
             self._sincronizar_tabla()
             self._limpiar_simulacion()
             self.vista.mostrar_mensaje_estado(
@@ -357,11 +448,13 @@ class ControladorAutomata:
         destino: str,
     ) -> None:
         """Elimina una transición borrada desde el lienzo."""
+        snap = self._capturar_snapshot(f"Eliminar transición δ({origen}, '{simbolo}')")
         try:
             if isinstance(self.modelo, AutomataNFA):
                 self.modelo.eliminar_transicion(origen, simbolo, destino)
             else:
                 self.modelo.eliminar_transicion(origen, simbolo)
+            self._comprometer_snapshot(snap)
             self._sincronizar_tabla()
             self._limpiar_simulacion()
             self.vista.mostrar_mensaje_estado(
@@ -479,6 +572,7 @@ class ControladorAutomata:
     def al_limpiar_grafo_completo(self) -> None:
         """Limpia por completo el modelo, el editor visual, la tabla y la simulación."""
         self._temporizador_animacion.stop()
+        self.registrar_snapshot("Limpiar lienzo y autómata")
         self.modelo.limpiar()
         if hasattr(self.vista, "lienzo_grafo"):
             self.vista.lienzo_grafo.limpiar_grafo(notificar=False)
@@ -539,3 +633,171 @@ class ControladorAutomata:
                 "Modelo convertido exitosamente a Autómata No Determinista (NFA)."
             )
         return self.modelo
+
+    def al_solicitar_conversion_a_dfa(self) -> None:
+        """Abre el diálogo interactivo para convertir de AFN a AFD con tabla de proceso."""
+        if not self.modelo.es_no_deterministico():
+            self.vista.mostrar_mensaje_estado(
+                "El autómata actual ya es determinista (AFD). No requiere conversión por subconjuntos."
+            )
+            QMessageBox.information(
+                self.vista,
+                "Autómata ya es Determinista",
+                "El autómata actual ya es Determinista (AFD).\n\n"
+                "Cada estado tiene a lo sumo una transición definida por símbolo. "
+                "La conversión de subconjuntos de Rabin-Scott aplica a autómatas no deterministas (AFN) con transiciones múltiples."
+            )
+            return
+
+        # Si el modelo aún no es instancia de AutomataNFA formal pero tiene no determinismo
+        if not isinstance(self.modelo, AutomataNFA):
+            self.convertir_modelo_a_nfa()
+
+        dialogo = DialogoConversionDFA(self.modelo, parent=self.vista)
+        dialogo.aplicar_afd_solicitado.connect(self.al_aplicar_conversion_dfa)
+        dialogo.exec()
+
+    def al_aplicar_conversion_dfa(self, resultado: object) -> None:
+        """Sustituye el modelo por el AFD equivalente generado y sincroniza toda la interfaz."""
+        dfa_a_aplicar = getattr(resultado, "dfa_final", getattr(resultado, "dfa", None))
+        if dfa_a_aplicar is None:
+            return
+        self.registrar_snapshot("Conversión de AFN a AFD")
+        self.modelo = dfa_a_aplicar
+        self._sincronizar_tabla()
+        self._limpiar_simulacion()
+
+        # Distribuir geométricamente los nuevos estados del AFD en el lienzo
+        if hasattr(self.vista, "lienzo_grafo"):
+            self.vista.lienzo_grafo.auto_organizar_nodos()
+
+        self.vista.mostrar_mensaje_estado(
+            f"✔ Conversión completada: AFN transformado exitosamente a AFD con {len(self.modelo.estados)} estados deterministas (Notación Kn)."
+        )
+
+    # ==========================================================================
+    # Gestión de Historial: Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y / Ctrl+Shift+Z)
+    # ==========================================================================
+
+    def _capturar_posiciones_grafo(self) -> Dict[str, Tuple[float, float]]:
+        """Obtiene las coordenadas (x, y) de todos los nodos actuales del lienzo."""
+        posiciones: Dict[str, Tuple[float, float]] = {}
+        if hasattr(self.vista, "lienzo_grafo") and hasattr(self.vista.lienzo_grafo, "nodos"):
+            for nombre, nodo in self.vista.lienzo_grafo.nodos.items():
+                posiciones[nombre] = (float(nodo.pos().x()), float(nodo.pos().y()))
+        return posiciones
+
+    def _capturar_snapshot(self, descripcion: str = "") -> SnapshotHistorial:
+        """Crea un snapshot del estado del modelo y posiciones en el lienzo."""
+        return SnapshotHistorial(
+            datos_modelo=self.modelo.a_diccionario(),
+            posiciones_nodos=self._capturar_posiciones_grafo(),
+            descripcion=descripcion,
+        )
+
+    def _comprometer_snapshot(self, snapshot: SnapshotHistorial) -> None:
+        """Guarda un snapshot en la pila de deshacer y limpia la de rehacer."""
+        if self._restaurando_historial:
+            return
+        self._historial_deshacer.append(snapshot)
+        if len(self._historial_deshacer) > 50:
+            self._historial_deshacer.pop(0)
+        self._historial_rehacer.clear()
+        self._actualizar_botones_historial()
+
+    def registrar_snapshot(self, descripcion: str = "") -> None:
+        """Captura y guarda el estado actual en el historial de deshacer."""
+        snapshot = self._capturar_snapshot(descripcion)
+        self._comprometer_snapshot(snapshot)
+
+    def _actualizar_botones_historial(self) -> None:
+        """Actualiza el estado habilitado/deshabilitado de los botones Deshacer y Rehacer."""
+        if hasattr(self.vista, "barra_herramientas_grafo"):
+            self.vista.barra_herramientas_grafo.actualizar_estado_historial(
+                puede_deshacer=len(self._historial_deshacer) > 0,
+                puede_rehacer=len(self._historial_rehacer) > 0,
+            )
+
+    def deshacer(self) -> bool:
+        """Deshace la última acción realizada, restaurando el modelo y las posiciones previas."""
+        if not self._historial_deshacer:
+            self.vista.mostrar_mensaje_estado("No hay más acciones para deshacer.")
+            return False
+
+        # Guardar estado actual en la pila de rehacer antes de restaurar
+        snapshot_actual = self._capturar_snapshot("Estado previo a deshacer")
+        self._historial_rehacer.append(snapshot_actual)
+
+        snapshot_previo = self._historial_deshacer.pop()
+        self._restaurar_snapshot(snapshot_previo)
+        self._actualizar_botones_historial()
+        self.vista.mostrar_mensaje_estado(
+            f"↶ Deshecho: {snapshot_previo.descripcion or 'Acción revertida'}."
+        )
+        return True
+
+    def rehacer(self) -> bool:
+        """Rehace la última acción deshecha."""
+        if not self._historial_rehacer:
+            self.vista.mostrar_mensaje_estado("No hay más acciones para rehacer.")
+            return False
+
+        snapshot_actual = self._capturar_snapshot("Estado previo a rehacer")
+        self._historial_deshacer.append(snapshot_actual)
+
+        snapshot_siguiente = self._historial_rehacer.pop()
+        self._restaurar_snapshot(snapshot_siguiente)
+        self._actualizar_botones_historial()
+        self.vista.mostrar_mensaje_estado(
+            f"↷ Rehecho: {snapshot_siguiente.descripcion or 'Acción restaurada'}."
+        )
+        return True
+
+    def _restaurar_snapshot(self, snapshot: SnapshotHistorial) -> None:
+        """Restaura completamente el modelo y la vista a partir de un snapshot."""
+        self._restaurando_historial = True
+        try:
+            # Reconstruir modelo polimórficamente (DFA o NFA)
+            self.modelo = Automata.desde_diccionario(snapshot.datos_modelo)
+
+            if hasattr(self.vista, "panel_alfabeto"):
+                self.vista.panel_alfabeto.actualizar_alfabeto(self.modelo.alfabeto.simbolos)
+
+            if hasattr(self.vista, "tabla_transiciones"):
+                self.vista.tabla_transiciones.actualizar_datos(
+                    estados=self.modelo.estados,
+                    simbolos=self.modelo.alfabeto.simbolos,
+                    transiciones=self.modelo.transiciones,
+                    estado_inicial=self.modelo.estado_inicial,
+                    estados_aceptacion=self.modelo.estados_aceptacion,
+                )
+
+            if hasattr(self.vista, "lienzo_grafo"):
+                self._sincronizando_grafo = True
+                try:
+                    self.vista.lienzo_grafo.establecer_alfabeto_permitido(self.modelo.alfabeto.simbolos)
+                    self.vista.lienzo_grafo.sincronizar_desde_modelo(
+                        estados=self.modelo.estados,
+                        transiciones=self.modelo.transiciones,
+                        estado_inicial=self.modelo.estado_inicial,
+                        estados_aceptacion=self.modelo.estados_aceptacion,
+                        posiciones_restauradas=snapshot.posiciones_nodos,
+                    )
+                finally:
+                    self._sincronizando_grafo = False
+
+            if hasattr(self.vista, "barra_herramientas_grafo"):
+                es_nfa = self.modelo.es_no_deterministico()
+                self.vista.barra_herramientas_grafo.actualizar_estado_no_deterministico(es_nfa)
+
+            self._limpiar_simulacion()
+        finally:
+            self._restaurando_historial = False
+
+    def al_auto_organizar_grafo(self) -> None:
+        """Distribuye automáticamente los nodos guardando el estado previo en el historial."""
+        self.registrar_snapshot("Auto-distribuir nodos")
+        if hasattr(self.vista, "lienzo_grafo"):
+            self.vista.lienzo_grafo.auto_organizar_nodos()
+        self.vista.mostrar_mensaje_estado("Nodos auto-distribuidos en el lienzo.")
+
