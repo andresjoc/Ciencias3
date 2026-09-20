@@ -36,12 +36,28 @@ class DesplegableMultiSeleccion(QComboBox):
         self.line_edit.setToolTip("Caracteres seleccionados actualmente en el desplegable")
         self.setLineEdit(self.line_edit)
 
+        self._actualizando_texto: bool = False
+        self.line_edit.textChanged.connect(self._al_cambiar_texto_line_edit)
+        self.modelo.itemChanged.connect(self._al_cambiar_item)
+
         # Interceptar clics en la lista para marcar/desmarcar inmediatamente sin cerrar el menú
         self.view().viewport().installEventFilter(self)
         self.view().installEventFilter(self)
-        self.modelo.itemChanged.connect(self._al_cambiar_item)
 
         self.setToolTip("Despliegue para marcar o desmarcar los caracteres que desea incluir en la conexión.")
+
+    def _al_cambiar_texto_line_edit(self, texto: str) -> None:
+        """Evita que Qt reemplace el texto conjunto con el valor del índice actual por defecto."""
+        if self._actualizando_texto:
+            return
+        esperado = self._texto_esperado()
+        if texto != esperado:
+            self.actualizar_texto()
+
+    def _texto_esperado(self) -> str:
+        """Genera el texto formateado correspondiente a los elementos marcados."""
+        marcados = sorted(self.obtener_elementos_marcados())
+        return ", ".join(marcados) if marcados else ""
 
     def eventFilter(self, obj, event) -> bool:
         """Permite alternar las casillas al hacer clic o presionar espacio sin cerrar el desplegable."""
@@ -84,6 +100,7 @@ class DesplegableMultiSeleccion(QComboBox):
         item.setCheckable(True)
         item.setCheckState(Qt.CheckState.Checked if marcado else Qt.CheckState.Unchecked)
         self.modelo.appendRow(item)
+        self.setCurrentIndex(-1)
         self.actualizar_texto()
 
     def obtener_elementos_marcados(self) -> Set[str]:
@@ -104,16 +121,18 @@ class DesplegableMultiSeleccion(QComboBox):
             if item:
                 item.setCheckState(estado)
         self.modelo.blockSignals(False)
+        self.setCurrentIndex(-1)
         self.actualizar_texto()
         self.seleccion_cambiada.emit(self.obtener_elementos_marcados())
 
     def actualizar_texto(self) -> None:
         """Actualiza el campo de texto del desplegable con los elementos marcados."""
-        marcados = sorted(self.obtener_elementos_marcados())
-        if marcados:
-            self.line_edit.setText(", ".join(marcados))
-        else:
-            self.line_edit.clear()
+        self._actualizando_texto = True
+        try:
+            self.line_edit.setText(self._texto_esperado())
+        finally:
+            self._actualizando_texto = False
+
 
 
 class DialogoSeleccionSimbolos(QDialog):

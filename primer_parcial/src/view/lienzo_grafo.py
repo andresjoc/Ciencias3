@@ -24,6 +24,7 @@ from PyQt6.QtWidgets import (
     QGraphicsSceneMouseEvent,
     QGraphicsView,
     QInputDialog,
+    QLineEdit,
     QMessageBox,
     QWidget,
 )
@@ -87,10 +88,15 @@ class LienzoGrafo(QGraphicsView):
         self._simbolos_alfabeto_permitidos: List[str] = []
         self._factor_zoom: float = 1.0
         self.setToolTip(
-            "Pizarra interactiva del autómata: Arrastra estados, conecta transiciones y haz zoom con la rueda del ratón."
+            "Sección Editor Gráfico: Pizarra interactiva del autómata donde diseña estados y transiciones. "
+            "Arrastre estados, conecte flechas y ajuste la vista con zoom o desplazamiento."
         )
 
         self._inicializar_linea_guia()
+
+    def placeholderText(self) -> str:
+        """Texto identificador de ubicación para la sección del editor gráfico."""
+        return "Sección Editor Gráfico: Pizarra del autómata (haga clic o arrastre para interactuar)"
 
     def zoom_acercar(self) -> None:
         """Aumenta el nivel de zoom del lienzo gráfico."""
@@ -178,6 +184,49 @@ class LienzoGrafo(QGraphicsView):
         for x in range(izq, int(rect.right()), tam_cuadricula):
             for y in range(arr, int(rect.bottom()), tam_cuadricula):
                 painter.drawPoint(x, y)
+
+    def drawForeground(self, painter: QPainter, rect: QRectF) -> None:
+        """Dibuja un marco placeholder explicativo en el centro cuando la pizarra no contiene estados."""
+        super().drawForeground(painter, rect)
+        if not self.nodos:
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+            centro = self.mapToScene(self.viewport().rect().center())
+            ancho_box = 440.0
+            alto_box = 105.0
+            rect_box = QRectF(
+                centro.x() - ancho_box / 2,
+                centro.y() - alto_box / 2,
+                ancho_box,
+                alto_box,
+            )
+
+            # Fondo translúcido con borde redondeado suave punteado
+            painter.setPen(QPen(QColor("#94a3b8"), 1.5, Qt.PenStyle.DashLine))
+            painter.setBrush(QBrush(QColor(255, 255, 255, 230)))
+            painter.drawRoundedRect(rect_box, 10, 10)
+
+            # Título formal de ubicación en la sección
+            painter.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+            painter.setPen(QColor("#334155"))
+            rect_titulo = QRectF(rect_box.left(), rect_box.top() + 14, ancho_box, 24)
+            painter.drawText(
+                rect_titulo,
+                Qt.AlignmentFlag.AlignCenter,
+                "Sección Editor Gráfico: Pizarra del Autómata",
+            )
+
+            # Subtítulo explicativo con instrucciones
+            painter.setFont(QFont("Segoe UI", 9))
+            painter.setPen(QColor("#64748b"))
+            rect_sub = QRectF(rect_box.left() + 16, rect_box.top() + 42, ancho_box - 32, 50)
+            texto_guia = (
+                "• Utilice la herramienta 'Crear Estado' o doble clic para añadir nodos\n"
+                "• Conecte flechas entre estados para trazar las transiciones formales"
+            )
+            painter.drawText(rect_sub, Qt.AlignmentFlag.AlignCenter, texto_guia)
+            painter.restore()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Gestiona las pulsaciones de ratón según la herramienta activa."""
@@ -456,6 +505,16 @@ class LienzoGrafo(QGraphicsView):
         self._escena.addItem(arista)
         self.aristas.append(arista)
         arista.actualizar_geometria()
+
+        # Si existe una arista opuesta, actualizarla inmediatamente para que ambas queden curvas desde el inicio
+        arista_opuesta = next(
+            (a for a in self.aristas if a.nodo_origen == nodo_dest and a.nodo_destino == nodo_orig and a != arista),
+            None,
+        )
+        if arista_opuesta:
+            arista_opuesta.actualizar_geometria()
+            arista_opuesta.update()
+
         return arista
 
     def al_nodo_movido(self, nombre: str, x: float, y: float) -> None:
@@ -473,33 +532,39 @@ class LienzoGrafo(QGraphicsView):
         self.estado_modificado.emit(nombre, es_inicial, es_aceptacion)
 
     def solicitar_renombrar_nodo(self, nodo: ItemNodoEstado) -> None:
-        """Abre un diálogo para cambiar el nombre de un estado."""
-        nuevo_nombre, ok = QInputDialog.getText(
-            self,
-            "Renombrar Estado",
-            "Nuevo identificador para el estado:",
-            text=nodo.nombre,
-        )
-        if ok and nuevo_nombre.strip() and nuevo_nombre.strip() != nodo.nombre:
-            nombre_limpio = nuevo_nombre.strip()
-            if not (nombre_limpio.isalnum() and nombre_limpio.isascii()):
-                QMessageBox.warning(
-                    self,
-                    "Nombre Inválido",
-                    "El nombre del estado solo puede contener letras y números sin caracteres especiales."
-                )
-                return
+        """Abre un diálogo para cambiar el nombre de un estado con placeholder explicativo."""
+        dialogo = QInputDialog(self)
+        dialogo.setWindowTitle("Renombrar Estado")
+        dialogo.setLabelText("Nuevo identificador para el estado:")
+        dialogo.setTextValue(nodo.nombre)
+        campo_texto = dialogo.findChild(QLineEdit)
+        if campo_texto:
+            campo_texto.setPlaceholderText("Sección Editor Gráfico: Ingrese identificador (ej. q0, q1)")
+            campo_texto.setToolTip("Identificador alfanumérico único para el estado en el autómata.")
 
-            if nombre_limpio in self.nodos:
-                QMessageBox.warning(self, "Nombre Duplicado", f"El estado '{nombre_limpio}' ya existe.")
-                return
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            nuevo_nombre = dialogo.textValue()
+            if nuevo_nombre and nuevo_nombre.strip() and nuevo_nombre.strip() != nodo.nombre:
+                nombre_limpio = nuevo_nombre.strip()
+                if not (nombre_limpio.isalnum() and nombre_limpio.isascii()):
+                    QMessageBox.warning(
+                        self,
+                        "Nombre Inválido",
+                        "El nombre del estado solo puede contener letras y números sin caracteres especiales."
+                    )
+                    return
 
-            antiguo = nodo.nombre
-            del self.nodos[antiguo]
-            nodo.nombre = nombre_limpio
-            self.nodos[nombre_limpio] = nodo
-            nodo.update()
-            self.estado_renombrado.emit(antiguo, nombre_limpio)
+                if nombre_limpio in self.nodos:
+                    QMessageBox.warning(self, "Nombre Duplicado", f"El estado '{nombre_limpio}' ya existe.")
+                    return
+
+                antiguo = nodo.nombre
+                del self.nodos[antiguo]
+                nodo.nombre = nombre_limpio
+                self.nodos[nombre_limpio] = nodo
+                nodo.actualizar_tooltip()
+                nodo.update()
+                self.estado_renombrado.emit(antiguo, nombre_limpio)
 
     def iniciar_conexion_desde(self, nodo: ItemNodoEstado) -> None:
         """Inicia el modo de conexión interactiva partiendo del nodo indicado."""
@@ -559,17 +624,28 @@ class LienzoGrafo(QGraphicsView):
         arista: ItemAristaTransicion,
         notificar: bool = True,
     ) -> None:
-        """Elimina una arista de la escena."""
+        nodo_orig = arista.nodo_origen
+        nodo_dest = arista.nodo_destino
+
         if arista in self.aristas:
             self.aristas.remove(arista)
 
-        arista.nodo_origen.remover_arista(arista)
-        arista.nodo_destino.remover_arista(arista)
+        nodo_orig.remover_arista(arista)
+        nodo_dest.remover_arista(arista)
         self._escena.removeItem(arista)
+
+        # Si existía una arista opuesta, ahora deja de ser bidireccional: actualizarla para que vuelva a ser recta
+        arista_opuesta = next(
+            (a for a in self.aristas if a.nodo_origen == nodo_dest and a.nodo_destino == nodo_orig),
+            None,
+        )
+        if arista_opuesta:
+            arista_opuesta.actualizar_geometria()
+            arista_opuesta.update()
 
         if notificar:
             for s in arista.simbolos:
-                self.transicion_eliminada.emit(arista.nodo_origen.nombre, s, arista.nodo_destino.nombre)
+                self.transicion_eliminada.emit(nodo_orig.nombre, s, nodo_dest.nombre)
 
     def limpiar_grafo(self, notificar: bool = True) -> None:
         """Borra todos los nodos y aristas del lienzo."""
@@ -660,3 +736,7 @@ class LienzoGrafo(QGraphicsView):
                         self.agregar_arista_visual(origen, simbolo, dest)
                 elif destinos:
                     self.agregar_arista_visual(origen, simbolo, str(destinos))
+
+        for a in self.aristas:
+            a.actualizar_geometria()
+            a.update()

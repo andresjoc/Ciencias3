@@ -16,12 +16,14 @@ from PyQt6.QtGui import (
     QFont,
     QPainter,
     QPainterPath,
+    QPainterPathStroker,
     QPen,
     QPolygonF,
 )
 from PyQt6.QtWidgets import (
     QGraphicsItem,
     QGraphicsPathItem,
+    QGraphicsSceneHoverEvent,
     QGraphicsSceneMouseEvent,
     QMenu,
 )
@@ -60,6 +62,7 @@ class ItemNodoEstado(QGraphicsItem):
         self.lienzo = lienzo
         self.aristas_incidentes: List[ItemAristaTransicion] = []
         self._esta_resaltado = False
+        self._en_hover = False
 
         self.setPos(x, y)
         self.setFlags(
@@ -71,8 +74,18 @@ class ItemNodoEstado(QGraphicsItem):
         self.setZValue(2.0)  # Los nodos se dibujan por encima de las aristas
         self.actualizar_tooltip()
 
+    def placeholderText(self) -> str:
+        """Texto identificador de ubicación en la sección del editor gráfico."""
+        tipos = []
+        if self.es_inicial:
+            tipos.append("Inicial (q₀)")
+        if self.es_aceptacion:
+            tipos.append("Aceptación (F)")
+        tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
+        return f"Sección Editor Gráfico: Nodo de Estado '{self.nombre}'{tipo_str}"
+
     def actualizar_tooltip(self) -> None:
-        """Configura el texto informativo al pasar el cursor sobre el estado."""
+        """Configura el texto informativo y de ubicación al pasar el cursor sobre el estado."""
         tipos = []
         if self.es_inicial:
             tipos.append("Inicial (q₀)")
@@ -80,18 +93,41 @@ class ItemNodoEstado(QGraphicsItem):
             tipos.append("Aceptación (F)")
         tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
         self.setToolTip(
-            f"Estado: {self.nombre}{tipo_str}\n"
+            f"Sección Editor Gráfico - Nodo de Estado: {self.nombre}{tipo_str}\n"
+            f"• Ubicación en pizarra: x={int(self.x())}, y={int(self.y())}\n"
             f"• Doble clic: Renombrar identificador\n"
             f"• Clic derecho: Menú contextual (marcar inicial, aceptación o eliminar)\n"
             f"• Arrastrar: Reubicar estado en la pizarra"
         )
 
+    def hoverEnterEvent(self, event: Optional[QGraphicsSceneHoverEvent]) -> None:
+        """Muestra sombra e iluminación sobre el nodo y placeholder en la barra de estado."""
+        if event is not None:
+            super().hoverEnterEvent(event)
+        self._en_hover = True
+        self.update()
+        if self.lienzo:
+            self.lienzo.mensaje_solicitado.emit(
+                f"{self.placeholderText()} (x={int(self.x())}, y={int(self.y())}) - Doble clic para renombrar, clic derecho para opciones."
+            )
+
+    def hoverLeaveEvent(self, event: Optional[QGraphicsSceneHoverEvent]) -> None:
+        """Restaura la apariencia estándar del nodo y el mensaje de la barra de estado."""
+        if event is not None:
+            super().hoverLeaveEvent(event)
+        self._en_hover = False
+        self.update()
+        if self.lienzo and self.lienzo.modo_actual == self.lienzo.MODO_SELECCION:
+            self.lienzo.mensaje_solicitado.emit(
+                "Sección Editor Gráfico: Modo Selección (arrastre estados o selecciónelos con clic)."
+            )
+
     def boundingRect(self) -> QRectF:
-        """Define el área envolvente del nodo incluyendo la flecha inicial si aplica."""
-        margen_izq = 65.0 if self.es_inicial else 12.0
-        margen_sup = 25.0 if self.es_inicial else 12.0
-        margen_der = 12.0
-        margen_inf = 12.0
+        """Define el área envolvente del nodo incluyendo la flecha inicial y la sombra/halo hover."""
+        margen_izq = 68.0 if self.es_inicial else 18.0
+        margen_sup = 28.0 if self.es_inicial else 18.0
+        margen_der = 18.0
+        margen_inf = 18.0
         return QRectF(
             -self.RADIO - margen_izq,
             -self.RADIO - margen_sup,
@@ -113,14 +149,30 @@ class ItemNodoEstado(QGraphicsItem):
         option: object,
         widget: object = None,
     ) -> None:
-        """Dibuja el estado con diseño moderno, borde, doble aro si aplica y texto."""
+        """Dibuja el estado con sombra de iluminación en hover, borde y texto formal."""
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # 1. Flecha inicial entrante (->) desde la izquierda si es_inicial
         if self.es_inicial:
             self._dibujar_flecha_inicial(painter)
 
-        # 2. Estilos según selección y resaltado en simulación
+        rect_circulo = QRectF(-self.RADIO, -self.RADIO, self.DIAMETRO, self.DIAMETRO)
+
+        # 2. Sombra y halo de iluminación al señalar el nodo con el cursor
+        if self._en_hover:
+            painter.save()
+            painter.setPen(Qt.PenStyle.NoPen)
+            # Sombrita difusa proyectada hacia abajo
+            painter.setBrush(QBrush(QColor(15, 23, 42, 45)))
+            painter.drawEllipse(rect_circulo.translated(0, 3.5).adjusted(-2, -2, 2, 2))
+            # Resplandor exterior celeste iluminado
+            painter.setBrush(QBrush(QColor(56, 189, 248, 65)))
+            painter.drawEllipse(rect_circulo.adjusted(-7, -7, 7, 7))
+            painter.setBrush(QBrush(QColor(14, 165, 233, 95)))
+            painter.drawEllipse(rect_circulo.adjusted(-3.5, -3.5, 3.5, 3.5))
+            painter.restore()
+
+        # 3. Estilos según selección, hover y resaltado en simulación
         if self._esta_resaltado:
             color_fondo = QColor("#fef08a")  # Amarillo simulación activo
             color_borde = QColor("#ca8a04")
@@ -128,14 +180,17 @@ class ItemNodoEstado(QGraphicsItem):
         elif self.isSelected():
             color_fondo = QColor("#eff6ff")
             color_borde = QColor("#2563eb")  # Azul seleccionado
+            grosor_borde = 2.8
+        elif self._en_hover:
+            color_fondo = QColor("#f0fdf4") if self.es_aceptacion else QColor("#f0f9ff")  # Blanco iluminado suave
+            color_borde = QColor("#0284c7")  # Borde azul celeste luminoso
             grosor_borde = 2.6
         else:
             color_fondo = QColor("#ffffff")
             color_borde = QColor("#1e293b")  # Pizarra oscuro
             grosor_borde = 2.0
 
-        # 3. Círculo principal del estado
-        rect_circulo = QRectF(-self.RADIO, -self.RADIO, self.DIAMETRO, self.DIAMETRO)
+        # 4. Círculo principal del estado
         pluma = QPen(color_borde, grosor_borde)
         pincel = QBrush(color_fondo)
         painter.setPen(pluma)
@@ -300,6 +355,8 @@ class ItemAristaTransicion(QGraphicsPathItem):
         self._punto_etiqueta = QPointF(0, 0)
         self._angulo_flecha = 0.0
         self._punto_flecha = QPointF(0, 0)
+        self._rect_etiqueta = QRectF()
+        self._en_hover = False
 
         # Vincular la arista a ambos nodos
         self.nodo_origen.agregar_arista(self)
@@ -308,12 +365,33 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
         self.setZValue(1.0)
         self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        self.setAcceptHoverEvents(True)
         self.actualizar_geometria()
 
+    def placeholderText(self) -> str:
+        """Texto identificador de ubicación en la sección del editor gráfico para la conexión."""
+        simbolos_str = ", ".join(sorted(self.simbolos)) if self.simbolos else "∅"
+        tipo_dir = self.obtener_tipo_bidireccional()
+        tipo_str = " [Ida]" if tipo_dir == "ida" else (" [Vuelta]" if tipo_dir == "vuelta" else "")
+        return f"Sección Editor Gráfico: Conexión δ({self.nodo_origen.nombre}, {{{simbolos_str}}}) = {self.nodo_destino.nombre}{tipo_str}"
+
+    def shape(self) -> QPainterPath:
+        """Define una zona de detección amplia para que el cursor señale fácilmente la conexión."""
+        stroker = QPainterPathStroker()
+        stroker.setWidth(18.0)
+        stroker.setCapStyle(Qt.PenCapStyle.RoundCap)
+        stroker.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        camino_amplio = stroker.createStroke(self.path())
+        if hasattr(self, "_rect_etiqueta") and not self._rect_etiqueta.isEmpty():
+            camino_amplio.addRoundedRect(self._rect_etiqueta.adjusted(-4, -4, 4, 4), 6, 6)
+        return camino_amplio
+
     def boundingRect(self) -> QRectF:
-        """Área envolvente de la arista calculada a partir de su camino y la etiqueta."""
+        """Área envolvente de la arista ampliada para incluir sombras y halos de iluminación."""
         camino_rect = self.path().boundingRect()
-        margen = 24.0
+        if hasattr(self, "_rect_etiqueta") and not self._rect_etiqueta.isEmpty():
+            camino_rect = camino_rect.united(self._rect_etiqueta)
+        margen = 28.0
         return camino_rect.adjusted(-margen, -margen, margen, margen)
 
     def actualizar_geometria(self) -> None:
@@ -330,15 +408,37 @@ class ItemAristaTransicion(QGraphicsPathItem):
         self.actualizar_tooltip()
 
     def actualizar_tooltip(self) -> None:
-        """Configura el texto descriptivo al posar el cursor sobre la conexión."""
+        """Configura el texto descriptivo y de ubicación al posar el cursor sobre la conexión."""
         simbolos_str = ", ".join(sorted(self.simbolos)) if self.simbolos else "∅ (sin símbolos)"
         tipo_dir = self.obtener_tipo_bidireccional()
         tipo_str = " [Ida]" if tipo_dir == "ida" else (" [Vuelta]" if tipo_dir == "vuelta" else "")
         self.setToolTip(
-            f"Transición δ({self.nodo_origen.nombre}, {{{simbolos_str}}}) = {self.nodo_destino.nombre}{tipo_str}\n"
+            f"Sección Editor Gráfico - Conexión / Transición: δ({self.nodo_origen.nombre}, {{{simbolos_str}}}) = {self.nodo_destino.nombre}{tipo_str}\n"
             f"• Clic / Doble clic: Abrir selector desplegable para añadir/quitar caracteres del alfabeto\n"
-            f"• Clic derecho: Opciones para editar o eliminar"
+            f"• Clic derecho: Menú contextual para editar o eliminar transición"
         )
+
+    def hoverEnterEvent(self, event: Optional[QGraphicsSceneHoverEvent]) -> None:
+        """Ilumina la conexión con sombreado y muestra en la barra de estado el placeholder."""
+        if event is not None:
+            super().hoverEnterEvent(event)
+        self._en_hover = True
+        self.update()
+        if self.lienzo:
+            self.lienzo.mensaje_solicitado.emit(
+                f"{self.placeholderText()} - Clic para abrir el selector desplegable de símbolos."
+            )
+
+    def hoverLeaveEvent(self, event: Optional[QGraphicsSceneHoverEvent]) -> None:
+        """Restaura la apariencia estándar de la conexión al retirar el cursor."""
+        if event is not None:
+            super().hoverLeaveEvent(event)
+        self._en_hover = False
+        self.update()
+        if self.lienzo and self.lienzo.modo_actual == self.lienzo.MODO_SELECCION:
+            self.lienzo.mensaje_solicitado.emit(
+                "Sección Editor Gráfico: Modo Selección (arrastre estados o selecciónelos con clic)."
+            )
 
     def _calcular_geometria_bucle(self, camino: QPainterPath) -> None:
         """Calcula el lazo curvo superior cuando un estado transiciona a sí mismo."""
@@ -467,7 +567,15 @@ class ItemAristaTransicion(QGraphicsPathItem):
         tipo_dir = self.obtener_tipo_bidireccional()
         if self.isSelected():
             color_arista = QColor("#2563eb")
-            grosor = 2.4
+            grosor = 2.6
+        elif self._en_hover:
+            if tipo_dir == "ida":
+                color_arista = QColor("#15803d")
+            elif tipo_dir == "vuelta":
+                color_arista = QColor("#b91c1c")
+            else:
+                color_arista = QColor("#0284c7")
+            grosor = 2.5
         elif tipo_dir == "ida":
             color_arista = QColor("#16a34a")  # Verde para ida
             grosor = 2.0
@@ -478,6 +586,34 @@ class ItemAristaTransicion(QGraphicsPathItem):
             color_arista = QColor("#475569")  # Pizarra oscuro estándar
             grosor = 1.8
 
+        # Sombra y halo de iluminación al señalar la conexión con el cursor
+        if self._en_hover:
+            painter.save()
+            # Sombra proyectada detrás de la curva
+            sombra_pluma = QPen(
+                QColor(15, 23, 42, 45),
+                grosor + 6.0,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+            painter.setPen(sombra_pluma)
+            painter.drawPath(self.path())
+
+            # Halo de resplandor iluminado con el color temático de la conexión
+            color_halo = QColor(color_arista)
+            color_halo.setAlpha(110)
+            halo_pluma = QPen(
+                color_halo,
+                grosor + 3.5,
+                Qt.PenStyle.SolidLine,
+                Qt.PenCapStyle.RoundCap,
+                Qt.PenJoinStyle.RoundJoin,
+            )
+            painter.setPen(halo_pluma)
+            painter.drawPath(self.path())
+            painter.restore()
+
         pluma = QPen(color_arista, grosor)
         painter.setPen(pluma)
         painter.setBrush(Qt.BrushStyle.NoBrush)
@@ -487,7 +623,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
         self._dibujar_punta_flecha(painter, color_arista)
 
         # Dibujar etiqueta de texto de los símbolos con estilo coordinado
-        self._dibujar_etiqueta(painter)
+        self._dibujar_etiqueta(painter, color_arista)
 
     def _dibujar_punta_flecha(self, painter: QPainter, color: QColor) -> None:
         """Dibuja la punta triangular en la llegada al nodo destino."""
@@ -510,8 +646,8 @@ class ItemAristaTransicion(QGraphicsPathItem):
         painter.setBrush(pincel)
         painter.drawPolygon(QPolygonF([p0, p1, p2]))
 
-    def _dibujar_etiqueta(self, painter: QPainter) -> None:
-        """Dibuja una pastilla con los símbolos; verde para ida, roja para vuelta, blanca para estándar."""
+    def _dibujar_etiqueta(self, painter: QPainter, color_arista: Optional[QColor] = None) -> None:
+        """Dibuja una pastilla con los símbolos y sombra/halo cuando está en hover."""
         texto = ", ".join(sorted(self.simbolos)) if self.simbolos else "∅"
         fuente = QFont("Segoe UI", 9, QFont.Weight.Bold)
         painter.setFont(fuente)
@@ -529,6 +665,21 @@ class ItemAristaTransicion(QGraphicsPathItem):
             ancho_txt + padding_x * 2,
             alto_txt + padding_y * 2,
         )
+        self._rect_etiqueta = rect_badge
+
+        # Sombra y halo sobre la etiqueta al estar señalada
+        if self._en_hover:
+            painter.save()
+            painter.setPen(Qt.PenStyle.NoPen)
+            # Sombrita suave difusa bajo la etiqueta
+            painter.setBrush(QBrush(QColor(15, 23, 42, 50)))
+            painter.drawRoundedRect(rect_badge.translated(0, 2.5), 6, 6)
+            # Halo luminoso alrededor de la pastilla
+            halo_bg = QColor(color_arista) if color_arista else QColor("#38bdf8")
+            halo_bg.setAlpha(65)
+            painter.setBrush(QBrush(halo_bg))
+            painter.drawRoundedRect(rect_badge.adjusted(-3, -3, 3, 3), 7, 7)
+            painter.restore()
 
         tipo_dir = self.obtener_tipo_bidireccional()
         if tipo_dir == "ida":
@@ -540,12 +691,12 @@ class ItemAristaTransicion(QGraphicsPathItem):
             color_fondo = QColor("#fef2f2")
             color_texto = QColor("#b91c1c")
         else:
-            color_borde = QColor("#cbd5e1")
-            color_fondo = QColor("#ffffff")
-            color_texto = QColor("#0f172a")
+            color_borde = QColor("#0284c7") if self._en_hover else QColor("#cbd5e1")
+            color_fondo = QColor("#f0f9ff") if self._en_hover else QColor("#ffffff")
+            color_texto = QColor("#0369a1") if self._en_hover else QColor("#0f172a")
 
         # Pastilla con bordes redondeados
-        painter.setPen(QPen(color_borde, 1.2))
+        painter.setPen(QPen(color_borde, 1.4 if self._en_hover else 1.2))
         painter.setBrush(QBrush(color_fondo))
         painter.drawRoundedRect(rect_badge, 4, 4)
 

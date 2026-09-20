@@ -224,6 +224,39 @@ def test_dialogo_seleccion_simbolos_desplegable(qapp):
     assert "1, 2" in dialogo.campo_resumen.text()
 
 
+def test_desmarcar_primer_elemento_desplegable_mantiene_lista_correcta(qapp):
+    """Verifica que al desmarcar el primer elemento, la vista del desplegable no se colapse en ese elemento."""
+    from src.view.dialogo_seleccion_simbolos import DialogoSeleccionSimbolos
+    from PyQt6.QtCore import Qt
+
+    dialogo = DialogoSeleccionSimbolos(
+        origen="q0",
+        destino="q1",
+        alfabeto_disponible=["a", "b", "c"],
+        simbolos_actuales={"a", "b"},
+    )
+
+    # Estado inicial: a y b marcados
+    assert dialogo.desplegable.line_edit.text() == "a, b"
+    assert dialogo.obtener_simbolos_seleccionados() == {"a", "b"}
+
+    # Desmarcar el primer elemento (índice 0, 'a')
+    item_0 = dialogo.desplegable.modelo.item(0)
+    assert item_0.text() == "a"
+    item_0.setCheckState(Qt.CheckState.Unchecked)
+
+    # La vista DEBE mostrar "b", no "a"
+    assert dialogo.desplegable.line_edit.text() == "b"
+    assert dialogo.obtener_simbolos_seleccionados() == {"b"}
+    assert "b" in dialogo.campo_resumen.text()
+
+    # Volver a marcar el primer elemento ('a')
+    item_0.setCheckState(Qt.CheckState.Checked)
+    assert dialogo.desplegable.line_edit.text() == "a, b"
+    assert dialogo.obtener_simbolos_seleccionados() == {"a", "b"}
+
+
+
 def test_dialogo_sin_alfabeto_no_permite_anadir_y_avisa_pantalla_principal(qapp):
     """Verifica que si no hay alfabeto definido, no brinde opción de añadir en el diálogo y avise."""
     from src.view.dialogo_seleccion_simbolos import DialogoSeleccionSimbolos
@@ -284,11 +317,50 @@ def test_placeholders_y_tooltips_en_elementos_interactivos(qapp):
     assert len(barra.boton_ayuda.toolTip()) > 0
 
     # 5. Lienzo del Grafo e Items
-    assert len(ventana.lienzo_grafo.toolTip()) > 0
-    nodo = ventana.lienzo_grafo.agregar_nodo_visual("q0", 0, 0, es_inicial=True)
+    lienzo = ventana.lienzo_grafo
+    assert len(lienzo.toolTip()) > 0
+    assert "Sección Editor Gráfico" in lienzo.toolTip()
+    assert "Sección Editor Gráfico" in lienzo.placeholderText()
+
+    nodo = lienzo.agregar_nodo_visual("q0", 0, 0, es_inicial=True)
     assert len(nodo.toolTip()) > 0
-    arista = ventana.lienzo_grafo.agregar_arista_visual("q0", "a", "q0")
+    assert "Sección Editor Gráfico" in nodo.toolTip()
+    assert "Sección Editor Gráfico" in nodo.placeholderText()
+
+    arista = lienzo.agregar_arista_visual("q0", "a", "q0")
     assert len(arista.toolTip()) > 0
+    assert "Sección Editor Gráfico" in arista.toolTip()
+    assert "Sección Editor Gráfico" in arista.placeholderText()
+
+
+def test_hover_iluminacion_y_sombra_en_nodos_y_conexiones(qapp):
+    """Verifica que al señalar con el cursor un nodo o conexión se active la iluminación/sombra."""
+    ventana = VentanaPrincipal()
+    lienzo = ventana.lienzo_grafo
+
+    nodo = lienzo.agregar_nodo_visual("q0", 50, 50, es_inicial=True)
+    arista = lienzo.agregar_arista_visual("q0", "a", "q0")
+
+    assert nodo._en_hover is False
+    assert arista._en_hover is False
+
+    # 1. Señalar el nodo (hover enter)
+    nodo.hoverEnterEvent(None)
+    assert nodo._en_hover is True
+    assert "Nodo de Estado 'q0'" in ventana.barra_estado.currentMessage()
+
+    # Retirar cursor del nodo (hover leave)
+    nodo.hoverLeaveEvent(None)
+    assert nodo._en_hover is False
+
+    # 2. Señalar la conexión (hover enter)
+    arista.hoverEnterEvent(None)
+    assert arista._en_hover is True
+    assert "Conexión" in ventana.barra_estado.currentMessage()
+
+    # Retirar cursor de la conexión (hover leave)
+    arista.hoverLeaveEvent(None)
+    assert arista._en_hover is False
 
 
 def test_modo_desplazar_vista(qapp):
@@ -344,4 +416,43 @@ def test_secuencia_creacion_estados_al_borrar(qapp):
     controlador.al_agregar_estado(siguiente, es_inicial=False, es_aceptacion=False)
     assert "q8" in modelo.estados
     assert ventana.lienzo_grafo._obtener_siguiente_identificador_estado() == "q9"
+
+
+def test_doble_conexion_inmediatamente_curva_ambos_lados(qapp):
+    """Verifica que al trazar la conexión de vuelta, AMBAS conexiones se curven inmediatamente sin mover nodos."""
+    ventana = VentanaPrincipal()
+    lienzo = ventana.lienzo_grafo
+
+    nodo_a = lienzo.agregar_nodo_visual("q0", 0, 0)
+    nodo_b = lienzo.agregar_nodo_visual("q1", 200, 0)
+
+    # 1. Crear arista de ida q0 -> q1
+    arista_ida = lienzo.agregar_arista_visual("q0", "a", "q1")
+    assert arista_ida is not None
+    assert arista_ida.obtener_tipo_bidireccional() is None
+    # Como es unidireccional y recta, elementCount del QPainterPath es 2 (MoveTo + LineTo)
+    assert arista_ida.path().elementCount() == 2
+
+    # 2. Crear arista de retorno q1 -> q0 (sin mover ningún nodo)
+    arista_vuelta = lienzo.agregar_arista_visual("q1", "b", "q0")
+    assert arista_vuelta is not None
+
+    # Verificar que AMBAS aristas ahora se reconocen como bidireccionales
+    assert arista_ida.obtener_tipo_bidireccional() == "ida"
+    assert arista_vuelta.obtener_tipo_bidireccional() == "vuelta"
+
+    # Verificar que AMBAS aristas son inmediatamente curvas (elementCount > 2 por la curva de Bézier quadTo)
+    # Ninguna debe haberse quedado recta!
+    assert arista_ida.path().elementCount() > 2
+    assert arista_vuelta.path().elementCount() > 2
+
+    # Verificar que las dos curvas se curvan en sentidos opuestos (el punto de etiqueta o medio se desvía arriba/abajo)
+    # Para q0 en (0,0) y q1 en (200,0), el vector perpendicular normal apunta hacia arriba o abajo
+    assert arista_ida._punto_etiqueta.y() != arista_vuelta._punto_etiqueta.y()
+
+    # 3. Al eliminar la arista de retorno, la arista de ida debe volver a ser recta inmediatamente
+    lienzo.eliminar_arista(arista_vuelta)
+    assert arista_ida.obtener_tipo_bidireccional() is None
+    assert arista_ida.path().elementCount() == 2
+
 
