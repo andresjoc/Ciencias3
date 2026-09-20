@@ -56,12 +56,20 @@ class PanelGuiaUso(QFrame):
             <h3 style="color: #2563eb; margin-top: 14px;">2. ¿Cómo conectar estados con flechas?</h3>
             <ul style="padding-left: 20px;">
                 <li>Selecciona el botón <code>➔ Conectar Flecha</code>.</li>
-                <li>Haz clic sostenido sobre el estado origen y arrastra hasta el estado destino. Al soltar, se abrirá un cuadro para escribir el símbolo (ej. <b>0</b> o <b>a</b>).</li>
-                <li><b>Bucles sobre el mismo estado:</b> Arrastra una flecha de un estado hacia sí mismo para crear un lazo curvo superior (<i>self-loop</i>).</li>
+                <li><b>Conexión a dos clics:</b> Haz un <b>primer clic</b> en el estado origen y luego un <b>segundo clic</b> en el estado destino (o en el mismo para bucles). También puedes arrastrar si lo prefieres.</li>
+                <li>Se abrirá un cuadro para ingresar el símbolo o símbolos permitidos (ej. <b>0</b> o <b>a</b>).</li>
+                <li><b>Bucles sobre el mismo estado:</b> Haz clic en el estado y luego otro clic sobre el mismo estado para crear un lazo curvo superior (<i>self-loop</i>).</li>
                 <li><b>Editar transición:</b> Haz doble clic sobre cualquier flecha o etiqueta para cambiar o añadir símbolos.</li>
             </ul>
 
-            <h3 style="color: #2563eb; margin-top: 14px;">3. ¿Cómo simular una cadena en la cinta?</h3>
+            <h3 style="color: #2563eb; margin-top: 14px;">3. Definición del Alfabeto Formal (Σ)</h3>
+            <ul style="padding-left: 20px;">
+                <li>Solo se permiten <b>letras</b> (A-Z, a-z) o <b>números</b> (0-9).</li>
+                <li>Cada símbolo debe ser exactamente de <b>un solo carácter</b> (ej. <code>0, 1</code> o <code>a, b, c</code>).</li>
+                <li>Deben estar separados por <b>comas o espacios</b>. El editor bloquea automáticamente caracteres pegados sin separación (ej. <i>"ab"</i>), comas consecutivas (<i>",,"</i>) y espacios dobles.</li>
+            </ul>
+
+            <h3 style="color: #2563eb; margin-top: 14px;">4. ¿Cómo simular una cadena en la cinta?</h3>
             <ul style="padding-left: 20px;">
                 <li>En la pestaña <b>"📼 Simulador de Cinta y Traza"</b>, escribe la palabra a evaluar en el campo <i>"Cadena (u)"</i> (ej. <code>0101</code> o <code>aab</code>) y presiona <b>"Iniciar Simulación"</b>.</li>
                 <li>Verás la cinta superior con la llave <code>{ u }</code> y el delimitador de fin de cadena <code>≡</code>.</li>
@@ -74,7 +82,7 @@ class PanelGuiaUso(QFrame):
                 <li>Al terminar, la insignia marcará en <span style="color:#15803d; font-weight:bold;">verde (✓ ACEPTADA)</span> o <span style="color:#b91c1c; font-weight:bold;">rojo (✗ RECHAZADA)</span>.</li>
             </ul>
 
-            <h3 style="color: #2563eb; margin-top: 14px;">4. Autómatas No Deterministas (NFA)</h3>
+            <h3 style="color: #2563eb; margin-top: 14px;">5. Autómatas No Deterministas (NFA)</h3>
             <p>Puedes conectar múltiples flechas con el mismo símbolo desde un estado hacia distintos destinos (ej. δ(q₀, 0) = {q₀, q₁}). Durante la simulación:</p>
             <ul style="padding-left: 20px;">
                 <li>Se dibujarán <b>ramas paralelas</b> para cada camino computacional posible.</li>
@@ -82,7 +90,7 @@ class PanelGuiaUso(QFrame):
                 <li>Si al menos una rama finaliza en un estado de aceptación al llegar a <code>≡</code>, la palabra es <b>aceptada</b>.</li>
             </ul>
 
-            <h3 style="color: #2563eb; margin-top: 14px;">5. Atajos rápidos de teclado</h3>
+            <h3 style="color: #2563eb; margin-top: 14px;">6. Atajos rápidos de teclado</h3>
             <table border="1" cellpadding="6" style="border-collapse: collapse; border-color: #cbd5e1; width: 100%;">
                 <tr style="background-color: #f1f5f9; font-weight: bold;">
                     <td>Tecla</td>

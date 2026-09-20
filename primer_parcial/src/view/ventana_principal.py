@@ -84,6 +84,9 @@ class VentanaPrincipal(QMainWindow):
         self.barra_herramientas_grafo.modo_cambiado.connect(self.lienzo_grafo.establecer_modo)
         self.barra_herramientas_grafo.auto_organizar_solicitado.connect(self.lienzo_grafo.auto_organizar_nodos)
         self.barra_herramientas_grafo.limpiar_solicitado.connect(self.lienzo_grafo.limpiar_grafo)
+        self.barra_herramientas_grafo.zoom_acercar_solicitado.connect(self.lienzo_grafo.zoom_acercar)
+        self.barra_herramientas_grafo.zoom_alejar_solicitado.connect(self.lienzo_grafo.zoom_alejar)
+        self.barra_herramientas_grafo.zoom_restablecer_solicitado.connect(self.lienzo_grafo.zoom_restablecer)
         self.barra_herramientas_grafo.ayuda_solicitada.connect(
             lambda: self.pestanas_derecha.setCurrentWidget(self.panel_guia_uso)
         )

@@ -87,3 +87,143 @@ def test_panel_alfabeto_entrada_vacia_error(aplicacion_qt):
 
     assert len(senales_emitidas) == 0
     assert "Debe ingresar al menos un símbolo" in panel.etiqueta_mensaje.text()
+
+
+def test_validador_alfabeto_tiempo_real(aplicacion_qt):
+    """Verifica que ValidadorAlfabeto evalúe correctamente las pulsaciones de teclado."""
+    from PyQt6.QtGui import QValidator
+    from src.view.panel_alfabeto import ValidadorAlfabeto
+
+    validador = ValidadorAlfabeto()
+
+    # Entradas intermedias válidas mientras el usuario escribe
+    assert validador.validate("", 0)[0] == QValidator.State.Intermediate
+    assert validador.validate("a,", 2)[0] == QValidator.State.Intermediate
+    assert validador.validate("a, ", 3)[0] == QValidator.State.Intermediate
+    assert validador.validate("a ", 2)[0] == QValidator.State.Intermediate
+
+    # Entradas completas válidas
+    assert validador.validate("a", 1)[0] == QValidator.State.Acceptable
+    assert validador.validate("a, b", 4)[0] == QValidator.State.Acceptable
+    assert validador.validate("0, 1", 4)[0] == QValidator.State.Acceptable
+    assert validador.validate("a b c", 5)[0] == QValidator.State.Acceptable
+    assert validador.validate("a,b,c", 5)[0] == QValidator.State.Acceptable
+
+    # Entradas inválidas (deben ser bloqueadas físicamente)
+    # 1. Caracteres pegados sin separación (más de un carácter por símbolo)
+    assert validador.validate("ab", 2)[0] == QValidator.State.Invalid
+    assert validador.validate("12", 2)[0] == QValidator.State.Invalid
+    assert validador.validate("a, bc", 5)[0] == QValidator.State.Invalid
+
+    # 2. Dos o más comas seguidas
+    assert validador.validate("a,,", 3)[0] == QValidator.State.Invalid
+    assert validador.validate("a, ,", 4)[0] == QValidator.State.Invalid
+
+    # 3. Dos espacios seguidos
+    assert validador.validate("a  ", 3)[0] == QValidator.State.Invalid
+    assert validador.validate("a  b", 4)[0] == QValidator.State.Invalid
+
+    # 4. Espacio antes de coma
+    assert validador.validate("a ,", 3)[0] == QValidator.State.Invalid
+
+    # 5. Iniciar con coma o espacio
+    assert validador.validate(",a", 2)[0] == QValidator.State.Invalid
+    assert validador.validate(" a", 2)[0] == QValidator.State.Invalid
+
+    # 6. Símbolos no alfanuméricos
+    assert validador.validate("a;b", 3)[0] == QValidator.State.Invalid
+    assert validador.validate("a@b", 3)[0] == QValidator.State.Invalid
+
+
+def test_panel_alfabeto_rechazo_caracteres_pegados(aplicacion_qt):
+    """Verifica que el panel rechace caracteres juntos sin separación."""
+    panel = PanelAlfabeto()
+    capturados = []
+    panel.alfabeto_solicitado.connect(lambda s: capturados.extend(s))
+
+    panel.establecer_texto_entrada("ab, c")
+    panel._al_solicitar_definicion()
+
+    assert len(capturados) == 0
+    assert "Solo se permite un carácter por símbolo" in panel.etiqueta_mensaje.text()
+
+
+def test_panel_alfabeto_rechazo_comas_y_espacios_consecutivos(aplicacion_qt):
+    """Verifica el rechazo de comas o espacios dobles."""
+    panel = PanelAlfabeto()
+    capturados = []
+    panel.alfabeto_solicitado.connect(lambda s: capturados.extend(s))
+
+    # Comas consecutivas
+    panel.establecer_texto_entrada("a,, b")
+    panel._al_solicitar_definicion()
+    assert len(capturados) == 0
+    assert "comas seguidas" in panel.etiqueta_mensaje.text()
+
+    # Espacios consecutivos
+    panel.establecer_texto_entrada("a  b")
+    panel._al_solicitar_definicion()
+    assert len(capturados) == 0
+    assert "espacios seguidos" in panel.etiqueta_mensaje.text()
+
+
+def test_panel_alfabeto_rechazo_entrada_incompleta(aplicacion_qt):
+    """Verifica el rechazo cuando termina en coma o espacio suelto."""
+    panel = PanelAlfabeto()
+    capturados = []
+    panel.alfabeto_solicitado.connect(lambda s: capturados.extend(s))
+
+    panel.establecer_texto_entrada("a, b,")
+    panel._al_solicitar_definicion()
+    assert len(capturados) == 0
+    assert "Entrada incompleta" in panel.etiqueta_mensaje.text()
+
+
+def test_panel_alfabeto_separacion_por_espacio_valida(aplicacion_qt):
+    """Verifica que separar con un solo espacio funcione correctamente."""
+    panel = PanelAlfabeto()
+    capturados = []
+    panel.alfabeto_solicitado.connect(lambda s: capturados.extend(s))
+
+    panel.establecer_texto_entrada("x y z")
+    panel._al_solicitar_definicion()
+    assert capturados == ["x", "y", "z"]
+    assert panel.etiqueta_mensaje.text() == ""
+
+
+def test_modelo_alfabeto_rechaza_no_alfanumerico_o_longitud_mayor_a_uno():
+    """Verifica que la clase Alfabeto a nivel modelo rechace símbolos no válidos."""
+    from src.model.alfabeto import Alfabeto, ErrorAlfabeto
+    import pytest
+
+    alf = Alfabeto()
+    with pytest.raises(ErrorAlfabeto, match="exactamente de un solo carácter"):
+        alf.agregar_simbolo("ab")
+
+    with pytest.raises(ErrorAlfabeto, match="Solo se permiten letras o números"):
+        alf.agregar_simbolo("@")
+
+
+def test_panel_alfabeto_ordenamiento_numeros_luego_letras(aplicacion_qt):
+    """Verifica que el alfabeto se ordene: números primero, luego letras en campo escrito y mostrado."""
+    panel = PanelAlfabeto()
+    capturados = []
+    panel.alfabeto_solicitado.connect(lambda s: capturados.append(s))
+
+    # Entrada desordenada con mezcla de letras y números
+    panel.establecer_texto_entrada("c, 2, a, 1, b, 0")
+    panel._al_solicitar_definicion()
+
+    # La señal emitida debe tener el orden canónico
+    assert len(capturados) == 1
+    assert capturados[0] == ["0", "1", "2", "a", "b", "c"]
+
+    # El campo escrito debe haberse actualizado con el nuevo orden
+    assert panel.obtener_texto_entrada() == "0, 1, 2, a, b, c"
+
+    # Simular la actualización formal desde el controlador
+    panel.actualizar_alfabeto(["z", "9", "b", "3"])
+    assert panel.obtener_texto_entrada() == "3, 9, b, z"
+    assert "Σ = { 3, 9, b, z }" in panel.etiqueta_alfabeto_actual.text()
+
+

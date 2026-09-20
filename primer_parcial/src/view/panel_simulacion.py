@@ -3,7 +3,8 @@
 from __future__ import annotations
 from typing import Optional, Union
 
-from PyQt6.QtCore import pyqtSignal
+from PyQt6.QtCore import QRegularExpression, pyqtSignal
+from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
@@ -51,11 +52,14 @@ class PanelSimulacion(QGroupBox):
         layout_entrada.addWidget(etiqueta_entrada)
 
         self.campo_cadena = QLineEdit()
-        self.campo_cadena.setPlaceholderText("Ingrese la palabra u (ej. 0101 o ab)")
+        self.campo_cadena.setPlaceholderText("Sección Cinta: Ingrese la palabra u a evaluar (ej. 0101 o ab)")
+        self.campo_cadena.setToolTip("Sección Simulador: Palabra u a simular en la cinta formal paso a paso.")
+        self.campo_cadena.setValidator(QRegularExpressionValidator(QRegularExpression(r"[a-zA-Z0-9]*"), self))
         self.campo_cadena.returnPressed.connect(self._al_iniciar)
         layout_entrada.addWidget(self.campo_cadena)
 
         self.boton_iniciar = QPushButton("Iniciar Simulación")
+        self.boton_iniciar.setToolTip("Cargar la palabra u en la cinta y preparar la traza de ejecución.")
         self.boton_iniciar.clicked.connect(self._al_iniciar)
         layout_entrada.addWidget(self.boton_iniciar)
 
@@ -65,21 +69,25 @@ class PanelSimulacion(QGroupBox):
         layout_controles = QHBoxLayout()
 
         self.boton_anterior = QPushButton("◀ Paso Anterior")
+        self.boton_anterior.setToolTip("Retroceder un paso en la lectura de la cinta y volver al estado previo.")
         self.boton_anterior.clicked.connect(self.retroceder_paso_solicitado.emit)
         self.boton_anterior.setEnabled(False)
         layout_controles.addWidget(self.boton_anterior)
 
         self.boton_siguiente = QPushButton("Paso Siguiente ▶")
+        self.boton_siguiente.setToolTip("Avanzar un paso: leer el símbolo actual y transicionar al siguiente estado.")
         self.boton_siguiente.clicked.connect(self.avanzar_paso_solicitado.emit)
         self.boton_siguiente.setEnabled(False)
         layout_controles.addWidget(self.boton_siguiente)
 
         self.boton_ejecutar_todo = QPushButton("Ejecutar Todo ⏭")
+        self.boton_ejecutar_todo.setToolTip("Recorrer toda la cinta automáticamente paso a paso con animación temporizada.")
         self.boton_ejecutar_todo.clicked.connect(self.ejecutar_todo_solicitado.emit)
         self.boton_ejecutar_todo.setEnabled(False)
         layout_controles.addWidget(self.boton_ejecutar_todo)
 
         self.boton_reiniciar = QPushButton("Reiniciar ↺")
+        self.boton_reiniciar.setToolTip("Regresar la cinta y el cabezal lector al estado inicial q₀.")
         self.boton_reiniciar.clicked.connect(self.reiniciar_simulacion_solicitado.emit)
         self.boton_reiniciar.setEnabled(False)
         layout_controles.addWidget(self.boton_reiniciar)
@@ -103,6 +111,7 @@ class PanelSimulacion(QGroupBox):
 
         # Fila 4: Lienzo gráfico de Cinta y Control
         self.lienzo = LienzoCinta(self)
+        self.lienzo.setToolTip("Visualizador gráfico: Muestra las celdas de la cinta, el cabezal lector y la unidad de control.")
         layout_principal.addWidget(self.lienzo, stretch=1)
 
         self.setLayout(layout_principal)
@@ -236,3 +245,8 @@ class PanelSimulacion(QGroupBox):
         self.boton_siguiente.setEnabled(False)
         self.boton_ejecutar_todo.setEnabled(False)
         self.boton_reiniciar.setEnabled(False)
+
+    def limpiar(self) -> None:
+        """Limpia el campo de texto y reinicia el estado y lienzo de la simulación."""
+        self.campo_cadena.clear()
+        self.actualizar_estado(None, 0, 0)

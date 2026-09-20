@@ -78,6 +78,14 @@ class Automata:
             for estado in estados_aceptacion:
                 self.agregar_estado_aceptacion(estado)
 
+    def limpiar(self) -> None:
+        """Elimina todos los estados, transiciones y configuraciones del autómata."""
+        self._estados.clear()
+        self._orden_estados.clear()
+        self._estado_inicial = None
+        self._estados_aceptacion.clear()
+        self._transiciones.clear()
+
     @property
     def alfabeto(self) -> Alfabeto:
         """Retorna el alfabeto formal Sigma del autómata."""

@@ -1,7 +1,9 @@
 """Lienzo gráfico interactivo estilo Draw.io para pintar y conectar autómatas."""
 
 from __future__ import annotations
+from collections import Counter
 import math
+import re
 from typing import Dict, List, Optional, Set
 
 from PyQt6.QtCore import QLineF, QPointF, QRectF, Qt, pyqtSignal
@@ -12,8 +14,10 @@ from PyQt6.QtGui import (
     QMouseEvent,
     QPainter,
     QPen,
+    QWheelEvent,
 )
 from PyQt6.QtWidgets import (
+    QDialog,
     QGraphicsItem,
     QGraphicsLineItem,
     QGraphicsScene,
@@ -24,23 +28,27 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from src.view.dialogo_seleccion_simbolos import DialogoSeleccionSimbolos
 from src.view.items_grafo import ItemAristaTransicion, ItemNodoEstado
 
 
 class LienzoGrafo(QGraphicsView):
-    """Lienzo de dibujo interactivo con cuadrícula estilo Draw.io.
+    """Editor visual de grafos donde el usuario puede arrastrar estados y conectar flechas.
 
     Señales:
         estado_creado (str, float, float, bool, bool): nombre, x, y, es_inicial, es_aceptacion.
-        estado_movido (str, float, float): nombre, x, y.
+        estado_movido (str, float, float): nombre, nueva_x, nueva_y.
         estado_modificado (str, bool, bool): nombre, es_inicial, es_aceptacion.
         estado_renombrado (str, str): nombre_antiguo, nombre_nuevo.
         estado_eliminado (str): nombre.
         transicion_solicitada (str, str, str): origen, simbolo, destino.
         transicion_eliminada (str, str, str): origen, simbolo, destino.
+        mensaje_solicitado (str): Texto explicativo para la barra de estado.
+        grafo_limpiado (): Emite cuando se limpia el grafo por completo.
     """
 
     MODO_SELECCION = "seleccion"
+    MODO_DESPLAZAR = "desplazar"
     MODO_CREAR_ESTADO = "crear_estado"
     MODO_CONECTAR = "conectar"
     MODO_BORRAR = "borrar"
@@ -53,6 +61,7 @@ class LienzoGrafo(QGraphicsView):
     transicion_solicitada = pyqtSignal(str, str, str)
     transicion_eliminada = pyqtSignal(str, str, str)
     mensaje_solicitado = pyqtSignal(str)
+    grafo_limpiado = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -76,8 +85,48 @@ class LienzoGrafo(QGraphicsView):
         self._linea_guia_temporal: Optional[QGraphicsLineItem] = None
         self._contador_estados: int = 0
         self._simbolos_alfabeto_permitidos: List[str] = []
+        self._factor_zoom: float = 1.0
+        self.setToolTip(
+            "Pizarra interactiva del autómata: Arrastra estados, conecta transiciones y haz zoom con la rueda del ratón."
+        )
 
         self._inicializar_linea_guia()
+
+    def zoom_acercar(self) -> None:
+        """Aumenta el nivel de zoom del lienzo gráfico."""
+        if self._factor_zoom < 3.5:
+            factor = 1.2
+            self.scale(factor, factor)
+            self._factor_zoom *= factor
+            self.mensaje_solicitado.emit(f"Zoom: {int(self._factor_zoom * 100)}%")
+
+    def zoom_alejar(self) -> None:
+        """Disminuye el nivel de zoom del lienzo gráfico."""
+        if self._factor_zoom > 0.35:
+            factor = 1.0 / 1.2
+            self.scale(factor, factor)
+            self._factor_zoom *= factor
+            self.mensaje_solicitado.emit(f"Zoom: {int(self._factor_zoom * 100)}%")
+
+    def zoom_restablecer(self) -> None:
+        """Restablece el nivel de zoom a la escala original (1:1 o 100%)."""
+        self.resetTransform()
+        self._factor_zoom = 1.0
+        self.mensaje_solicitado.emit("Zoom restablecido al 100%")
+
+    @property
+    def factor_zoom(self) -> float:
+        """Factor de escala actual del visor de grafos."""
+        return self._factor_zoom
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        """Permite hacer zoom interactivo con la rueda del ratón."""
+        delta = event.angleDelta().y()
+        if delta > 0:
+            self.zoom_acercar()
+        elif delta < 0:
+            self.zoom_alejar()
+        event.accept()
 
     def _inicializar_linea_guia(self) -> None:
         """Crea la línea elástica visible al conectar estados."""
@@ -100,6 +149,10 @@ class LienzoGrafo(QGraphicsView):
             self.setCursor(Qt.CursorShape.ArrowCursor)
             self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
             self.mensaje_solicitado.emit("Modo Selección: Arrastre estados para moverlos o selecciónelos con clic.")
+        elif modo == self.MODO_DESPLAZAR:
+            self.setCursor(Qt.CursorShape.OpenHandCursor)
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            self.mensaje_solicitado.emit("Modo Desplazar: Mantén el clic presionado y arrastra para mover la vista de la pizarra.")
         elif modo == self.MODO_CREAR_ESTADO:
             self.setCursor(Qt.CursorShape.CrossCursor)
             self.setDragMode(QGraphicsView.DragMode.NoDrag)
@@ -128,6 +181,11 @@ class LienzoGrafo(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Gestiona las pulsaciones de ratón según la herramienta activa."""
+        # 0. Modo Desplazar (Pan con arrastre de mano)
+        if self.modo_actual == self.MODO_DESPLAZAR:
+            super().mousePressEvent(event)
+            return
+
         pos_escena = self.mapToScene(event.pos())
 
         # Resolver el nodo o arista bajo el cursor examinando los items en la posición
@@ -198,10 +256,21 @@ class LienzoGrafo(QGraphicsView):
                         self.mensaje_solicitado.emit("Conexión cancelada.")
                     return
 
+        # 4. Modo Selección: si se hace clic sobre una arista, seleccionarla y abrir selector
+        if self.modo_actual == self.MODO_SELECCION and event.button() == Qt.MouseButton.LeftButton:
+            if item_arista and not item_nodo:
+                super().mousePressEvent(event)
+                self.solicitar_editar_arista(item_arista)
+                return
+
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Actualiza la línea elástica de conexión temporal si hay un nodo origen seleccionado."""
+        if self.modo_actual == self.MODO_DESPLAZAR:
+            super().mouseMoveEvent(event)
+            return
+
         if self._nodo_origen_temporal and self._linea_guia_temporal:
             p_origen = self._nodo_origen_temporal.pos()
             p_actual = self.mapToScene(event.pos())
@@ -211,6 +280,10 @@ class LienzoGrafo(QGraphicsView):
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Gestiona el soltado del ratón permitiendo tanto dos clics como arrastrar."""
+        if self.modo_actual == self.MODO_DESPLAZAR:
+            super().mouseReleaseEvent(event)
+            return
+
         if self.modo_actual == self.MODO_CONECTAR and self._nodo_origen_temporal is not None:
             # Si el usuario realizó un arrastre directo y soltó sobre un nodo destino distinto
             items_en_punto = self.items(event.pos())
@@ -263,14 +336,43 @@ class LienzoGrafo(QGraphicsView):
         if self._linea_guia_temporal:
             self._linea_guia_temporal.setVisible(False)
 
+    def _obtener_siguiente_identificador_estado(self) -> str:
+        """Determina el siguiente nombre de estado continuando la secuencia desde el mayor índice existente."""
+        if not self.nodos:
+            return "q0"
+
+        # Extraer prefijo y números de los estados existentes
+        numeros = []
+        prefijos = []
+        for nombre in self.nodos.keys():
+            match = re.match(r"^([a-zA-Z]*)(\d+)$", nombre.strip())
+            if match:
+                prefijo, num_str = match.groups()
+                prefijos.append(prefijo)
+                numeros.append(int(num_str))
+
+        if not numeros:
+            contador = len(self.nodos)
+            while f"q{contador}" in self.nodos:
+                contador += 1
+            return f"q{contador}"
+
+        # Continuar la secuencia desde el mayor índice existente + 1 (evita rellenar huecos internos como q2)
+        mayor_numero = max(numeros)
+        siguiente_num = mayor_numero + 1
+
+        prefijo_comun = Counter(prefijos).most_common(1)[0][0] if prefijos else "q"
+
+        candidato = f"{prefijo_comun}{siguiente_num}"
+        while candidato in self.nodos:
+            siguiente_num += 1
+            candidato = f"{prefijo_comun}{siguiente_num}"
+
+        return candidato
+
     def _crear_nuevo_estado_en(self, x: float, y: float) -> None:
-        """Crea e inserta un nuevo estado con nombre incremental (q0, q1, ...)."""
-        while f"q{self._contador_estados}" in self.nodos:
-            self._contador_estados += 1
-
-        nombre = f"q{self._contador_estados}"
-        self._contador_estados += 1
-
+        """Crea e inserta un nuevo estado con nombre incremental continuando la secuencia."""
+        nombre = self._obtener_siguiente_identificador_estado()
         es_primero = (len(self.nodos) == 0)
         self.agregar_nodo_visual(nombre, x, y, es_inicial=es_primero, es_aceptacion=False)
         self.estado_creado.emit(nombre, x, y, es_primero, False)
@@ -308,20 +410,24 @@ class LienzoGrafo(QGraphicsView):
         origen: ItemNodoEstado,
         destino: ItemNodoEstado,
     ) -> None:
-        """Muestra un diálogo solicitando el símbolo o símbolos para la transición."""
-        sugerencia = self._simbolos_alfabeto_permitidos[0] if self._simbolos_alfabeto_permitidos else "a"
-        texto, ok = QInputDialog.getText(
-            self,
-            "Nueva Transición",
-            f"Ingrese el símbolo del alfabeto para δ({origen.nombre}, s) = {destino.nombre}:",
-            text=sugerencia,
+        if not self._simbolos_alfabeto_permitidos:
+            self.mensaje_solicitado.emit(
+                "No hay un alfabeto formal (Σ) definido. Debe añadirlo primero en la pantalla principal."
+            )
+        dialogo = DialogoSeleccionSimbolos(
+            origen=origen.nombre,
+            destino=destino.nombre,
+            alfabeto_disponible=self._simbolos_alfabeto_permitidos,
+            simbolos_actuales=None,
+            parent=self,
         )
-        if not ok or not texto.strip():
-            return
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            simbolos_seleccionados = dialogo.obtener_simbolos_seleccionados()
+            if not simbolos_seleccionados:
+                return
 
-        simbolos = [s.strip() for s in texto.replace(";", ",").split(",") if s.strip()]
-        for sim in simbolos:
-            self.transicion_solicitada.emit(origen.nombre, sim, destino.nombre)
+            for sim in sorted(simbolos_seleccionados):
+                self.transicion_solicitada.emit(origen.nombre, sim, destino.nombre)
 
     def agregar_arista_visual(
         self,
@@ -376,6 +482,14 @@ class LienzoGrafo(QGraphicsView):
         )
         if ok and nuevo_nombre.strip() and nuevo_nombre.strip() != nodo.nombre:
             nombre_limpio = nuevo_nombre.strip()
+            if not (nombre_limpio.isalnum() and nombre_limpio.isascii()):
+                QMessageBox.warning(
+                    self,
+                    "Nombre Inválido",
+                    "El nombre del estado solo puede contener letras y números sin caracteres especiales."
+                )
+                return
+
             if nombre_limpio in self.nodos:
                 QMessageBox.warning(self, "Nombre Duplicado", f"El estado '{nombre_limpio}' ya existe.")
                 return
@@ -397,16 +511,20 @@ class LienzoGrafo(QGraphicsView):
             self._linea_guia_temporal.setVisible(True)
 
     def solicitar_editar_arista(self, arista: ItemAristaTransicion) -> None:
-        """Permite editar los símbolos asociados a una arista existente."""
-        texto_actual = ", ".join(sorted(arista.simbolos))
-        texto, ok = QInputDialog.getText(
-            self,
-            "Editar Transición",
-            f"Símbolos de δ({arista.nodo_origen.nombre}, s) = {arista.nodo_destino.nombre}:",
-            text=texto_actual,
+        """Permite editar los símbolos asociados a una arista existente mediante el selector desplegable."""
+        if not self._simbolos_alfabeto_permitidos:
+            self.mensaje_solicitado.emit(
+                "No hay un alfabeto formal (Σ) definido. Debe añadirlo primero en la pantalla principal."
+            )
+        dialogo = DialogoSeleccionSimbolos(
+            origen=arista.nodo_origen.nombre,
+            destino=arista.nodo_destino.nombre,
+            alfabeto_disponible=self._simbolos_alfabeto_permitidos,
+            simbolos_actuales=arista.simbolos,
+            parent=self,
         )
-        if ok:
-            nuevos = {s.strip() for s in texto.replace(";", ",").split(",") if s.strip()}
+        if dialogo.exec() == QDialog.DialogCode.Accepted:
+            nuevos = dialogo.obtener_simbolos_seleccionados()
             # Notificar eliminados
             eliminados = arista.simbolos - nuevos
             for e in eliminados:
@@ -453,7 +571,7 @@ class LienzoGrafo(QGraphicsView):
             for s in arista.simbolos:
                 self.transicion_eliminada.emit(arista.nodo_origen.nombre, s, arista.nodo_destino.nombre)
 
-    def limpiar_grafo(self) -> None:
+    def limpiar_grafo(self, notificar: bool = True) -> None:
         """Borra todos los nodos y aristas del lienzo."""
         self._cancelar_conexion_temporal()
         for arista in list(self.aristas):
@@ -464,6 +582,9 @@ class LienzoGrafo(QGraphicsView):
             self._escena.removeItem(nodo)
         self.nodos.clear()
         self._contador_estados = 0
+
+        if notificar:
+            self.grafo_limpiado.emit()
 
     def auto_organizar_nodos(self) -> None:
         """Distribuye los estados de forma circular estética y equidistante."""

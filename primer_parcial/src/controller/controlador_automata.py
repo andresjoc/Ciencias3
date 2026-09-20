@@ -3,6 +3,8 @@
 from __future__ import annotations
 from typing import List, Optional, Union
 
+from PyQt6.QtCore import QTimer
+
 from src.model.alfabeto import ErrorAlfabeto
 from src.model.automata import Automata, ErrorAutomata, ResultadoTraza
 from src.model.automata_nfa import AutomataNFA, ResultadoTrazaNFA
@@ -26,6 +28,10 @@ class ControladorAutomata:
         self._paso_actual: int = 0
         self._sincronizando_grafo = False
 
+        self._temporizador_animacion = QTimer()
+        self._temporizador_animacion.setInterval(450)
+        self._temporizador_animacion.timeout.connect(self._al_tick_temporizador_simulacion)
+
         self._conectar_senales()
         self._inicializar_estado_vista()
 
@@ -46,7 +52,7 @@ class ControladorAutomata:
             self.vista.panel_simulacion.evaluacion_solicitada.connect(self.al_solicitar_evaluacion)
             self.vista.panel_simulacion.avanzar_paso_solicitado.connect(self.al_avanzar_paso)
             self.vista.panel_simulacion.retroceder_paso_solicitado.connect(self.al_retroceder_paso)
-            self.vista.panel_simulacion.ejecutar_todo_solicitado.connect(self.al_ejecutar_todo)
+            self.vista.panel_simulacion.ejecutar_todo_solicitado.connect(self.al_ejecutar_todo_automatico)
             self.vista.panel_simulacion.reiniciar_simulacion_solicitado.connect(self.al_reiniciar_simulacion)
 
         # 4. Señales del editor visual de grafos (LienzoGrafo)
@@ -56,6 +62,7 @@ class ControladorAutomata:
             self.vista.lienzo_grafo.estado_eliminado.connect(self.al_eliminar_estado_desde_grafo)
             self.vista.lienzo_grafo.transicion_solicitada.connect(self.al_crear_transicion_desde_grafo)
             self.vista.lienzo_grafo.transicion_eliminada.connect(self.al_eliminar_transicion_desde_grafo)
+            self.vista.lienzo_grafo.grafo_limpiado.connect(self.al_limpiar_grafo_completo)
 
     def _inicializar_estado_vista(self) -> None:
         """Sincroniza los componentes de la vista con los datos iniciales del modelo."""
@@ -384,6 +391,7 @@ class ControladorAutomata:
             return False
 
         try:
+            self._temporizador_animacion.stop()
             traza = self.modelo.generar_traza(cadena)
             self._traza_actual = traza
             self._paso_actual = 0
@@ -395,6 +403,7 @@ class ControladorAutomata:
             )
             return True
         except (ErrorAlfabeto, ErrorAutomata) as error:
+            self._temporizador_animacion.stop()
             self._traza_actual = None
             self._paso_actual = 0
             if hasattr(self.vista, "panel_simulacion"):
@@ -412,6 +421,7 @@ class ControladorAutomata:
 
     def al_avanzar_paso(self) -> None:
         """Avanza un paso en la simulación activa."""
+        self._temporizador_animacion.stop()
         total = self._obtener_total_pasos()
         if self._traza_actual and self._paso_actual < total - 1:
             self._paso_actual += 1
@@ -419,22 +429,72 @@ class ControladorAutomata:
 
     def al_retroceder_paso(self) -> None:
         """Retrocede un paso en la simulación activa."""
+        self._temporizador_animacion.stop()
         if self._traza_actual and self._paso_actual > 0:
             self._paso_actual -= 1
             self._actualizar_vista_simulacion()
 
     def al_ejecutar_todo(self) -> None:
-        """Avanza directamente al paso final de la simulación."""
+        """Avanza directamente al paso final de la simulación de forma síncrona."""
+        self._temporizador_animacion.stop()
         total = self._obtener_total_pasos()
         if self._traza_actual and total > 0:
             self._paso_actual = total - 1
             self._actualizar_vista_simulacion()
 
+    def al_ejecutar_todo_automatico(self) -> None:
+        """Ejecuta la simulación paso a paso automáticamente con animación temporizada."""
+        total = self._obtener_total_pasos()
+        if not self._traza_actual or total <= 0:
+            return
+
+        if self._paso_actual >= total - 1:
+            # Si ya está en el último paso, reiniciar al primero para volver a ejecutar
+            self._paso_actual = 0
+            self._actualizar_vista_simulacion()
+
+        if self._temporizador_animacion.isActive():
+            self._temporizador_animacion.stop()
+        else:
+            self._temporizador_animacion.start()
+
+    def _al_tick_temporizador_simulacion(self) -> None:
+        """Avanza un paso de animación del temporizador automático."""
+        total = self._obtener_total_pasos()
+        if self._traza_actual and self._paso_actual < total - 1:
+            self._paso_actual += 1
+            self._actualizar_vista_simulacion()
+            if self._paso_actual >= total - 1:
+                self._temporizador_animacion.stop()
+        else:
+            self._temporizador_animacion.stop()
+
     def al_reiniciar_simulacion(self) -> None:
         """Regresa la simulación al paso inicial (paso 0)."""
+        self._temporizador_animacion.stop()
         if self._traza_actual:
             self._paso_actual = 0
             self._actualizar_vista_simulacion()
+
+    def al_limpiar_grafo_completo(self) -> None:
+        """Limpia por completo el modelo, el editor visual, la tabla y la simulación."""
+        self._temporizador_animacion.stop()
+        self.modelo.limpiar()
+        if hasattr(self.vista, "lienzo_grafo"):
+            self.vista.lienzo_grafo.limpiar_grafo(notificar=False)
+            self.vista.lienzo_grafo.resaltar_estado(None)
+        if hasattr(self.vista, "tabla_transiciones"):
+            self.vista.tabla_transiciones.actualizar_datos(
+                estados=[],
+                simbolos=self.modelo.alfabeto.simbolos,
+                transiciones={},
+                estado_inicial=None,
+                estados_aceptacion=set(),
+            )
+        if hasattr(self.vista, "panel_simulacion"):
+            self.vista.panel_simulacion.limpiar()
+        self._limpiar_simulacion()
+        self.vista.mostrar_mensaje_estado("Grafo y datos del autómata limpiados por completo.")
 
     def _actualizar_vista_simulacion(self) -> None:
         """Notifica al panel de simulación y resalta el estado activo en el grafo."""
@@ -464,6 +524,7 @@ class ControladorAutomata:
 
     def _limpiar_simulacion(self) -> None:
         """Reinicia la simulación ante cambios estructurales en el autómata."""
+        self._temporizador_animacion.stop()
         self._traza_actual = None
         self._paso_actual = 0
         self._actualizar_vista_simulacion()

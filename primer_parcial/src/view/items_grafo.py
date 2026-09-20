@@ -69,6 +69,22 @@ class ItemNodoEstado(QGraphicsItem):
         )
         self.setAcceptHoverEvents(True)
         self.setZValue(2.0)  # Los nodos se dibujan por encima de las aristas
+        self.actualizar_tooltip()
+
+    def actualizar_tooltip(self) -> None:
+        """Configura el texto informativo al pasar el cursor sobre el estado."""
+        tipos = []
+        if self.es_inicial:
+            tipos.append("Inicial (q₀)")
+        if self.es_aceptacion:
+            tipos.append("Aceptación (F)")
+        tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
+        self.setToolTip(
+            f"Estado: {self.nombre}{tipo_str}\n"
+            f"• Doble clic: Renombrar identificador\n"
+            f"• Clic derecho: Menú contextual (marcar inicial, aceptación o eliminar)\n"
+            f"• Arrastrar: Reubicar estado en la pizarra"
+        )
 
     def boundingRect(self) -> QRectF:
         """Define el área envolvente del nodo incluyendo la flecha inicial si aplica."""
@@ -176,6 +192,7 @@ class ItemNodoEstado(QGraphicsItem):
         if self.es_inicial != valor:
             self.prepareGeometryChange()
             self.es_inicial = valor
+            self.actualizar_tooltip()
             self.update()
 
     def establecer_es_aceptacion(self, valor: bool) -> None:
@@ -183,6 +200,7 @@ class ItemNodoEstado(QGraphicsItem):
         if self.es_aceptacion != valor:
             self.prepareGeometryChange()
             self.es_aceptacion = valor
+            self.actualizar_tooltip()
             self.update()
 
     def itemChange(self, change: QGraphicsItem.GraphicsItemChange, value: object) -> object:
@@ -309,6 +327,18 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
         self.setPath(camino)
         self.prepareGeometryChange()
+        self.actualizar_tooltip()
+
+    def actualizar_tooltip(self) -> None:
+        """Configura el texto descriptivo al posar el cursor sobre la conexión."""
+        simbolos_str = ", ".join(sorted(self.simbolos)) if self.simbolos else "∅ (sin símbolos)"
+        tipo_dir = self.obtener_tipo_bidireccional()
+        tipo_str = " [Ida]" if tipo_dir == "ida" else (" [Vuelta]" if tipo_dir == "vuelta" else "")
+        self.setToolTip(
+            f"Transición δ({self.nodo_origen.nombre}, {{{simbolos_str}}}) = {self.nodo_destino.nombre}{tipo_str}\n"
+            f"• Clic / Doble clic: Abrir selector desplegable para añadir/quitar caracteres del alfabeto\n"
+            f"• Clic derecho: Opciones para editar o eliminar"
+        )
 
     def _calcular_geometria_bucle(self, camino: QPainterPath) -> None:
         """Calcula el lazo curvo superior cuando un estado transiciona a sí mismo."""
@@ -401,27 +431,62 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
         self._punto_flecha = p2
 
+    def obtener_tipo_bidireccional(self) -> Optional[str]:
+        """Determina si la arista forma parte de una conexión de ida y vuelta.
+
+        Retorna:
+            'ida': Si es la conexión de ida (verde).
+            'vuelta': Si es la conexión de retorno (rojo).
+            None: Si es una arista unidireccional o un bucle sobre sí mismo.
+        """
+        if self._es_bucle or not self.lienzo:
+            return None
+
+        tiene_opuesta = any(
+            a.nodo_origen == self.nodo_destino and a.nodo_destino == self.nodo_origen
+            for a in self.lienzo.aristas
+            if a != self
+        )
+        if not tiene_opuesta:
+            return None
+
+        # Criterio consistente y canónico: origen < destino es ida, origen > destino es vuelta
+        if self.nodo_origen.nombre < self.nodo_destino.nombre:
+            return "ida"
+        return "vuelta"
+
     def paint(
         self,
         painter: QPainter,
         option: object,
         widget: object = None,
     ) -> None:
-        """Dibuja la curva, la punta de flecha triangular y la etiqueta de símbolos."""
+        """Dibuja la curva, la punta de flecha triangular y la etiqueta de símbolos con color distintivo si es ida/vuelta."""
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        color_arista = QColor("#2563eb") if self.isSelected() else QColor("#475569")
-        grosor = 2.4 if self.isSelected() else 1.8
+        tipo_dir = self.obtener_tipo_bidireccional()
+        if self.isSelected():
+            color_arista = QColor("#2563eb")
+            grosor = 2.4
+        elif tipo_dir == "ida":
+            color_arista = QColor("#16a34a")  # Verde para ida
+            grosor = 2.0
+        elif tipo_dir == "vuelta":
+            color_arista = QColor("#dc2626")  # Rojo para vuelta
+            grosor = 2.0
+        else:
+            color_arista = QColor("#475569")  # Pizarra oscuro estándar
+            grosor = 1.8
 
         pluma = QPen(color_arista, grosor)
         painter.setPen(pluma)
         painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.drawPath(self.path())
 
-        # Dibujar punta de flecha triangular orientada
+        # Dibujar punta de flecha triangular orientada con el mismo color
         self._dibujar_punta_flecha(painter, color_arista)
 
-        # Dibujar etiqueta de texto de los símbolos
+        # Dibujar etiqueta de texto de los símbolos con estilo coordinado
         self._dibujar_etiqueta(painter)
 
     def _dibujar_punta_flecha(self, painter: QPainter, color: QColor) -> None:
@@ -446,7 +511,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
         painter.drawPolygon(QPolygonF([p0, p1, p2]))
 
     def _dibujar_etiqueta(self, painter: QPainter) -> None:
-        """Dibuja una pequeña pastilla con fondo blanco y el texto de los símbolos."""
+        """Dibuja una pastilla con los símbolos; verde para ida, roja para vuelta, blanca para estándar."""
         texto = ", ".join(sorted(self.simbolos)) if self.simbolos else "∅"
         fuente = QFont("Segoe UI", 9, QFont.Weight.Bold)
         painter.setFont(fuente)
@@ -456,7 +521,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
         ancho_txt = fm.horizontalAdvance(texto)
         alto_txt = fm.height()
 
-        padding_x = 6
+        padding_x = 7
         padding_y = 3
         rect_badge = QRectF(
             self._punto_etiqueta.x() - ancho_txt / 2 - padding_x,
@@ -465,13 +530,27 @@ class ItemAristaTransicion(QGraphicsPathItem):
             alto_txt + padding_y * 2,
         )
 
-        # Pastilla de fondo blanco con bordes redondeados
-        painter.setPen(QPen(QColor("#cbd5e1"), 1.0))
-        painter.setBrush(QBrush(QColor("#ffffff")))
+        tipo_dir = self.obtener_tipo_bidireccional()
+        if tipo_dir == "ida":
+            color_borde = QColor("#86efac")
+            color_fondo = QColor("#f0fdf4")
+            color_texto = QColor("#15803d")
+        elif tipo_dir == "vuelta":
+            color_borde = QColor("#fca5a5")
+            color_fondo = QColor("#fef2f2")
+            color_texto = QColor("#b91c1c")
+        else:
+            color_borde = QColor("#cbd5e1")
+            color_fondo = QColor("#ffffff")
+            color_texto = QColor("#0f172a")
+
+        # Pastilla con bordes redondeados
+        painter.setPen(QPen(color_borde, 1.2))
+        painter.setBrush(QBrush(color_fondo))
         painter.drawRoundedRect(rect_badge, 4, 4)
 
-        # Texto del símbolo
-        painter.setPen(QColor("#0f172a"))
+        # Texto de los símbolos
+        painter.setPen(color_texto)
         painter.drawText(rect_badge, Qt.AlignmentFlag.AlignCenter, texto)
 
     def contextMenuEvent(self, event: object) -> None:
@@ -489,6 +568,16 @@ class ItemAristaTransicion(QGraphicsPathItem):
         elif seleccion == accion_eliminar:
             if self.lienzo:
                 self.lienzo.eliminar_arista(self)
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        """Al hacer clic sobre la conexión en modo selección, abre el selector de caracteres."""
+        super().mousePressEvent(event)
+        if (
+            event.button() == Qt.MouseButton.LeftButton
+            and self.lienzo
+            and self.lienzo.modo_actual == self.lienzo.MODO_SELECCION
+        ):
+            self.lienzo.solicitar_editar_arista(self)
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Doble clic abre el editor de símbolos de la transición."""

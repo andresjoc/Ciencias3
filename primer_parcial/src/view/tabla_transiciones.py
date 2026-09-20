@@ -1,9 +1,11 @@
 """Componente visual para la edición y visualización de la tabla de transiciones."""
 
 from __future__ import annotations
+import re
 from typing import Dict, List, Optional, Set
 
-from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtCore import QRegularExpression, Qt, pyqtSignal
+from PyQt6.QtGui import QRegularExpressionValidator
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
@@ -28,8 +30,8 @@ class TablaTransiciones(QGroupBox):
         transicion_modificada (str, str, str): Se emite con (estado_origen, simbolo, estado_destino)
             cuando una celda de la tabla es editada por el usuario.
         estado_agregado (str, bool, bool): Se emite con (nombre_estado, es_inicial, es_aceptacion)
-            al presionar el botón de agregar estado.
-        estado_eliminado (str): Se emite con el nombre del estado a eliminar.
+            cuando el usuario añade un estado desde la interfaz.
+        estado_eliminado (str): Se emite con el identificador del estado a eliminar.
     """
 
     transicion_modificada = pyqtSignal(str, str, str)
@@ -40,6 +42,9 @@ class TablaTransiciones(QGroupBox):
         super().__init__("Tabla de Transiciones (δ)", parent)
         self._estados: List[str] = []
         self._simbolos: List[str] = []
+        self._transiciones_cache: Dict[str, Dict[str, str]] = {}
+        self._estado_inicial_cache: Optional[str] = None
+        self._estados_aceptacion_cache: Set[str] = set()
         self._actualizando_internamente = False
         self._inicializar_ui()
 
@@ -53,22 +58,30 @@ class TablaTransiciones(QGroupBox):
         layout_gestion_estados.setSpacing(8)
 
         self.campo_nombre_estado = QLineEdit()
-        self.campo_nombre_estado.setPlaceholderText("Nombre de estado (ej. q0)")
+        self.campo_nombre_estado.setPlaceholderText("Sección Matriz δ: Nombre de estado (ej. q0, q1)")
+        self.campo_nombre_estado.setToolTip(
+            "Sección Matriz de Transiciones: Ingrese el identificador alfanumérico del nuevo estado formal (ej. q0)."
+        )
+        self.campo_nombre_estado.setValidator(QRegularExpressionValidator(QRegularExpression(r"[a-zA-Z0-9]*"), self))
         self.campo_nombre_estado.returnPressed.connect(self._al_agregar_estado)
         layout_gestion_estados.addWidget(self.campo_nombre_estado)
 
         self.check_inicial = QCheckBox("Inicial (q₀)")
+        self.check_inicial.setToolTip("Marcar si este nuevo estado será el estado inicial formal q₀ del autómata.")
         layout_gestion_estados.addWidget(self.check_inicial)
 
         self.check_aceptacion = QCheckBox("Aceptación (F)")
+        self.check_aceptacion.setToolTip("Marcar si este estado formará parte del conjunto de estados de aceptación F.")
         layout_gestion_estados.addWidget(self.check_aceptacion)
 
         self.boton_agregar_estado = QPushButton("Agregar Estado")
+        self.boton_agregar_estado.setToolTip("Registrar el nuevo estado formal en el autómata y la matriz.")
         self.boton_agregar_estado.clicked.connect(self._al_agregar_estado)
         layout_gestion_estados.addWidget(self.boton_agregar_estado)
 
         self.boton_eliminar_estado = QPushButton("Eliminar Estado")
         self.boton_eliminar_estado.setStyleSheet("color: #b91c1c;")
+        self.boton_eliminar_estado.setToolTip("Eliminar de la matriz y del autómata el estado seleccionado.")
         self.boton_eliminar_estado.clicked.connect(self._al_eliminar_estado)
         layout_gestion_estados.addWidget(self.boton_eliminar_estado)
 
@@ -77,6 +90,10 @@ class TablaTransiciones(QGroupBox):
         # Tabla matricial (QTableWidget)
         self.tabla = QTableWidget()
         self.tabla.setAlternatingRowColors(True)
+        self.tabla.setToolTip(
+            "Matriz formal de transiciones δ(q, σ):\n"
+            "Doble clic en una celda para editar el estado destino (o varios separados por comas para NFA)."
+        )
         self.tabla.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.tabla.cellChanged.connect(self._al_cambiar_celda)
         layout_principal.addWidget(self.tabla)
@@ -93,6 +110,10 @@ class TablaTransiciones(QGroupBox):
         nombre = self.campo_nombre_estado.text().strip()
         if not nombre:
             self.mostrar_advertencia("Debe especificar un nombre para el estado.")
+            return
+
+        if not (nombre.isalnum() and nombre.isascii()):
+            self.mostrar_advertencia("El nombre del estado solo puede contener letras y números sin caracteres especiales.")
             return
 
         es_inicial = self.check_inicial.isChecked()
@@ -128,6 +149,19 @@ class TablaTransiciones(QGroupBox):
         item = self.tabla.item(fila, columna)
         nuevo_destino = item.text().strip() if item else ""
 
+        # Validar caracteres especiales: solo alfanumérico, comas o espacios para destinos
+        if nuevo_destino and not re.fullmatch(r"[a-zA-Z0-9, ]*", nuevo_destino):
+            self.mostrar_advertencia("Los estados destino solo pueden contener letras y números sin caracteres especiales.")
+            self.actualizar_datos(
+                self._estados,
+                self._simbolos,
+                self._transiciones_cache,
+                self._estado_inicial_cache,
+                self._estados_aceptacion_cache,
+            )
+            return
+
+        self.limpiar_advertencia()
         self.transicion_modificada.emit(estado_origen, simbolo, nuevo_destino)
 
     def actualizar_datos(
@@ -150,6 +184,11 @@ class TablaTransiciones(QGroupBox):
         self._actualizando_internamente = True
         self._estados = list(estados)
         self._simbolos = list(simbolos)
+        self._transiciones_cache = {
+            orig: dict(t) for orig, t in transiciones.items()
+        }
+        self._estado_inicial_cache = estado_inicial
+        self._estados_aceptacion_cache = set(estados_aceptacion)
 
         self.tabla.setRowCount(len(estados))
         self.tabla.setColumnCount(len(simbolos))

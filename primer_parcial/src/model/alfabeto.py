@@ -9,11 +9,28 @@ class ErrorAlfabeto(ValueError):
     pass
 
 
+def clave_orden_alfabeto(simbolo: str) -> tuple[int, int | str, str]:
+    """Criterio de ordenamiento canónico para símbolos del alfabeto formal.
+
+    Regla:
+    1. Si es dígito: orden numérico ascendente (prioridad 0).
+    2. Si es letra: orden alfabético ascendente (prioridad 1).
+    """
+    if simbolo.isdigit():
+        return (0, int(simbolo), simbolo)
+    return (1, simbolo.lower(), simbolo)
+
+
+def ordenar_simbolos_alfabeto(simbolos: Iterable[str]) -> List[str]:
+    """Ordena los símbolos: primero números en orden ascendente, luego letras en orden alfabético."""
+    return sorted(dict.fromkeys(simbolos), key=clave_orden_alfabeto)
+
+
 class Alfabeto:
     """Representa el alfabeto formal de entrada (Sigma).
 
-    Mantiene símbolos únicos preservando el orden de inserción para la
-    presentación en tablas y visualizaciones.
+    Mantiene símbolos únicos ordenados canónicamente:
+    primero números en orden ascendente, luego letras en orden alfabético.
     """
 
     def __init__(self, simbolos: Iterable[str] | None = None) -> None:
@@ -30,7 +47,7 @@ class Alfabeto:
         return list(self._simbolos)
 
     def agregar_simbolo(self, simbolo: str) -> None:
-        """Agrega un símbolo al alfabeto.
+        """Agrega un símbolo al alfabeto y mantiene el orden canónico.
 
         Args:
             simbolo: Cadena no vacía que representa un símbolo del alfabeto.
@@ -42,10 +59,14 @@ class Alfabeto:
             raise ErrorAlfabeto(f"El símbolo debe ser una cadena, recibido: {type(simbolo).__name__}")
         if len(simbolo) == 0:
             raise ErrorAlfabeto("El símbolo del alfabeto no puede ser una cadena vacía.")
+        if len(simbolo) != 1:
+            raise ErrorAlfabeto(f"Cada símbolo del alfabeto debe ser exactamente de un solo carácter, recibido: '{simbolo}'.")
+        if not (simbolo.isalnum() and simbolo.isascii()):
+            raise ErrorAlfabeto(f"El símbolo '{simbolo}' no es válido. Solo se permiten letras o números.")
 
         if simbolo not in self._conjunto_simbolos:
-            self._simbolos.append(simbolo)
             self._conjunto_simbolos.add(simbolo)
+            self._simbolos = ordenar_simbolos_alfabeto(self._conjunto_simbolos)
 
     def eliminar_simbolo(self, simbolo: str) -> None:
         """Elimina un símbolo del alfabeto si existe.
@@ -58,8 +79,8 @@ class Alfabeto:
         """
         if simbolo not in self._conjunto_simbolos:
             raise ErrorAlfabeto(f"El símbolo '{simbolo}' no existe en el alfabeto.")
-        self._simbolos.remove(simbolo)
         self._conjunto_simbolos.remove(simbolo)
+        self._simbolos = ordenar_simbolos_alfabeto(self._conjunto_simbolos)
 
     def contiene(self, simbolo: str) -> bool:
         """Verifica si un símbolo pertenece al alfabeto."""

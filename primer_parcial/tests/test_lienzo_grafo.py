@@ -181,8 +181,12 @@ def test_conexion_dos_clics_flujo(qapp, monkeypatch):
     lienzo.transicion_solicitada.connect(lambda o, s, d: transiciones_capturadas.append((o, s, d)))
 
     # Simular diálogo que ingresa el símbolo "1"
-    from PyQt6.QtWidgets import QInputDialog
+    from PyQt6.QtWidgets import QDialog, QInputDialog
+    from src.view.dialogo_seleccion_simbolos import DialogoSeleccionSimbolos
+
     monkeypatch.setattr(QInputDialog, "getText", lambda *args, **kwargs: ("1", True))
+    monkeypatch.setattr(DialogoSeleccionSimbolos, "exec", lambda self: QDialog.DialogCode.Accepted)
+    monkeypatch.setattr(DialogoSeleccionSimbolos, "obtener_simbolos_seleccionados", lambda self: {"1"})
 
     # Clic 1: sobre nodo0 (origen)
     pos_pantalla_0 = lienzo.mapFromScene(nodo0.pos())
