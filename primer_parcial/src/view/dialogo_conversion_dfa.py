@@ -26,6 +26,7 @@ from src.model.conversion_nfa_dfa import (
     FilaMapeoKn,
     ResultadoConversionMetodoProfe,
 )
+from src.view.lienzo_grafo import LienzoGrafo
 
 
 class DialogoConversionDFA(QDialog):
@@ -36,7 +37,7 @@ class DialogoConversionDFA(QDialog):
     - Paso 2: Tabla 2 - Expansión de estados compuestos
     - Paso 3: Tabla de renombrado a la notación Kn
     - Paso 4: «Regla de Oro» y Tabla 3 formalizada con columna '¿Es Final?'
-    - Paso 5: Instrucciones de dibujo ("Pintar")
+    - Paso 5: Instrucciones de dibujo ("Pintar") y Grafo interactivo con estados inalcanzables en rojo
     - Paso 6: Rastreo de accesibilidad, poda de inalcanzables y Tabla 4 final simplificada.
     """
 
@@ -52,8 +53,8 @@ class DialogoConversionDFA(QDialog):
         self.resultado: Optional[ResultadoConversionMetodoProfe] = None
 
         self.setWindowTitle("Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos del Profesor)")
-        self.resize(980, 680)
-        self.setMinimumSize(840, 520)
+        self.resize(1040, 740)
+        self.setMinimumSize(880, 580)
 
         self._calcular_conversion()
         self._inicializar_ui()
@@ -388,31 +389,179 @@ class DialogoConversionDFA(QDialog):
 
         res = self.resultado
 
-        # --- SECCIÓN PASO 5 ---
-        lbl_p5 = QLabel("Paso 5: Dibujar el grafo del AFD (\"Pintar\")")
+        # ======================================================================
+        # PASO 5: DIBUJAR EL GRAFO DEL AFD («PINTAR» A PARTIR DE TABLA 3)
+        # ======================================================================
+        lbl_p5 = QLabel("Paso 5: Dibujar el grafo del AFD («Pintar» a partir de la Tabla 3)")
         lbl_p5.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         lbl_p5.setStyleSheet("color: #1e293b;")
         layout.addWidget(lbl_p5)
 
         txt_p5 = QLabel(
-            "1. Se traza el estado inicial → (K₀).\n"
-            "2. Se representan los estados finales de aceptación con doble círculo concéntrico.\n"
-            "3. Se grafican las flechas rotuladas con las entradas siguiendo la matriz de transiciones formal."
+            "1. Se traza el estado inicial con flecha entrante → (K₀).\n"
+            "2. Se representan los estados finales de aceptación con doble círculo concéntrico (Regla de Oro).\n"
+            "3. Se grafican todas las transiciones rotuladas con las entradas {a, b...} formalizadas en la Tabla 3.\n"
+            "• Nota pedagógica: En el visor inferior se muestra el grafo íntegro de la Tabla 3. Los estados que\n"
+            "  resultan inalcanzables desde K₀ se colorean automáticamente en ROJO para visualizar la poda del Paso 6."
         )
         txt_p5.setStyleSheet("color: #475569; font-size: 11px;")
         layout.addWidget(txt_p5)
 
+        # Marco visual con el visor del grafo de la Tabla 3
+        marco_grafo = QFrame()
+        marco_grafo.setStyleSheet(
+            "QFrame { background-color: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; }"
+        )
+        layout_marco = QVBoxLayout(marco_grafo)
+        layout_marco.setContentsMargins(10, 10, 10, 10)
+        layout_marco.setSpacing(8)
+
+        # Barra superior con título, leyendas y controles de navegación
+        barra_top = QHBoxLayout()
+        barra_top.setSpacing(8)
+
+        lbl_titulo_grafo = QLabel("🖼️ Grafo Completo del AFD (Tabla 3)")
+        lbl_titulo_grafo.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+        lbl_titulo_grafo.setStyleSheet("color: #0f172a;")
+        barra_top.addWidget(lbl_titulo_grafo)
+
+        # Pastillas informativas de la leyenda
+        lbl_leg_ini = QLabel("🔵 → K₀ (Inicial)")
+        lbl_leg_ini.setStyleSheet(
+            "color: #0284c7; font-weight: 600; font-size: 11px; background: #f0f9ff; "
+            "border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;"
+        )
+        barra_top.addWidget(lbl_leg_ini)
+
+        lbl_leg_alc = QLabel("🟢 Kₙ Alcanzable")
+        lbl_leg_alc.setStyleSheet(
+            "color: #166534; font-weight: 600; font-size: 11px; background: #f0fdf4; "
+            "border: 1px solid #bbf7d0; padding: 2px 6px; border-radius: 4px;"
+        )
+        barra_top.addWidget(lbl_leg_alc)
+
+        lbl_leg_inacc = QLabel("🔴 Kₙ Inalcanzable (Rojo)")
+        lbl_leg_inacc.setStyleSheet(
+            "color: #b91c1c; font-weight: 600; font-size: 11px; background: #fef2f2; "
+            "border: 1px solid #fecaca; padding: 2px 6px; border-radius: 4px;"
+        )
+        barra_top.addWidget(lbl_leg_inacc)
+
+        lbl_leg_doble = QLabel("⭕ Doble Círculo (Final)")
+        lbl_leg_doble.setStyleSheet(
+            "color: #475569; font-weight: 600; font-size: 11px; background: #f8fafc; "
+            "border: 1px solid #e2e8f0; padding: 2px 6px; border-radius: 4px;"
+        )
+        barra_top.addWidget(lbl_leg_doble)
+
+        barra_top.addStretch()
+
+        btn_auto = QPushButton("🔄 Auto-distribuir")
+        btn_auto.setToolTip("Reorganiza los nodos circularmente de manera armónica.")
+        btn_auto.setStyleSheet("QPushButton { font-size: 11px; font-weight: bold; padding: 4px 10px; }")
+
+        btn_zoom_in = QPushButton("🔍+")
+        btn_zoom_in.setToolTip("Acercar zoom")
+        btn_zoom_in.setFixedWidth(36)
+
+        btn_zoom_out = QPushButton("🔍-")
+        btn_zoom_out.setToolTip("Alejar zoom")
+        btn_zoom_out.setFixedWidth(36)
+
+        btn_zoom_rst = QPushButton("⟲ 100%")
+        btn_zoom_rst.setToolTip("Restablecer escala original 1:1")
+        btn_zoom_rst.setFixedWidth(52)
+
+        barra_top.addWidget(btn_auto)
+        barra_top.addWidget(btn_zoom_in)
+        barra_top.addWidget(btn_zoom_out)
+        barra_top.addWidget(btn_zoom_rst)
+
+        layout_marco.addLayout(barra_top)
+
+        # Lienzo del grafo en modo solo lectura (permite zoom, paneo y arrastre libre de nodos)
+        lienzo_tabla3 = LienzoGrafo(parent=marco_grafo, solo_lectura=True)
+        self.lienzo_tabla3 = lienzo_tabla3
+        lienzo_tabla3.setMinimumHeight(350)
+        lienzo_tabla3.establecer_alfabeto_permitido(res.alfabeto)
+
+        btn_auto.clicked.connect(lienzo_tabla3.auto_organizar_nodos)
+        btn_zoom_in.clicked.connect(lienzo_tabla3.zoom_acercar)
+        btn_zoom_out.clicked.connect(lienzo_tabla3.zoom_alejar)
+        btn_zoom_rst.clicked.connect(lienzo_tabla3.zoom_restablecer)
+
+        estados_tabla3 = [f.etiqueta for f in res.tabla3_formalizada]
+        estado_inicial_tabla3 = next((f.etiqueta for f in res.tabla3_formalizada if f.es_inicial), "K0")
+        estados_aceptacion_tabla3 = {f.etiqueta for f in res.tabla3_formalizada if f.es_final}
+        estados_inalcanzables_set = set(res.accesibilidad.estados_inalcanzables)
+
+        transiciones_tabla3 = {}
+        for f in res.tabla3_formalizada:
+            trans_est = {}
+            for sim, dest in f.transiciones_kn.items():
+                if dest:
+                    trans_est[sim] = dest
+            transiciones_tabla3[f.etiqueta] = trans_est
+
+        lienzo_tabla3.sincronizar_desde_modelo(
+            estados=estados_tabla3,
+            transiciones=transiciones_tabla3,
+            estado_inicial=estado_inicial_tabla3,
+            estados_aceptacion=estados_aceptacion_tabla3,
+            estados_inalcanzables=estados_inalcanzables_set,
+        )
+        lienzo_tabla3.auto_organizar_nodos()
+        layout_marco.addWidget(lienzo_tabla3)
+        layout.addWidget(marco_grafo)
+
+        # Banner explicativo de la detección visual de inalcanzables
+        if res.accesibilidad.estados_inalcanzables:
+            inacc_str = ", ".join(res.accesibilidad.estados_inalcanzables)
+            marco_alerta_inacc = QFrame()
+            marco_alerta_inacc.setStyleSheet(
+                "QFrame { background-color: #fef2f2; border: 1.5px solid #f87171; border-radius: 6px; padding: 8px 12px; }"
+            )
+            layout_alerta = QVBoxLayout(marco_alerta_inacc)
+            layout_alerta.setSpacing(3)
+
+            lbl_alerta_tit = QLabel(f"✂ Estados Inalcanzables Resaltados en ROJO: {{{inacc_str}}}")
+            lbl_alerta_tit.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            lbl_alerta_tit.setStyleSheet("color: #b91c1c;")
+            layout_alerta.addWidget(lbl_alerta_tit)
+
+            lbl_alerta_desc = QLabel(
+                f"Al observar el grafo de la Tabla 3, se puede evidenciar que no existe ningún camino dirigido desde el estado inicial "
+                f"({estado_inicial_tabla3}) hacia los nodos en rojo {{{inacc_str}}}. "
+                f"Por tanto, en el Paso 6 son podados del autómata para producir la versión mínima de la Tabla 4."
+            )
+            lbl_alerta_desc.setStyleSheet("color: #7f1d1d; font-size: 11px;")
+            lbl_alerta_desc.setWordWrap(True)
+            layout_alerta.addWidget(lbl_alerta_desc)
+            layout.addWidget(marco_alerta_inacc)
+        else:
+            marco_alerta_ok = QFrame()
+            marco_alerta_ok.setStyleSheet(
+                "QFrame { background-color: #f0fdf4; border: 1.5px solid #86efac; border-radius: 6px; padding: 8px 12px; }"
+            )
+            layout_ok = QVBoxLayout(marco_alerta_ok)
+            lbl_ok = QLabel("✔ Todos los estados del autómata son alcanzables desde K₀ (no hay estados inalcanzables en rojo).")
+            lbl_ok.setStyleSheet("color: #166534; font-weight: bold; font-size: 11px;")
+            layout_ok.addWidget(lbl_ok)
+            layout.addWidget(marco_alerta_ok)
+
         layout.addSpacing(6)
 
-        # --- SECCIÓN PASO 6 ---
-        lbl_p6 = QLabel("Paso 6: Identificar y podar estados inalcanzables")
+        # ======================================================================
+        # PASO 6: IDENTIFICAR Y PODAR ESTADOS INALCANZABLES (TABLA 4 FINAL)
+        # ======================================================================
+        lbl_p6 = QLabel("Paso 6: Identificar y podar estados inalcanzables (Poda y Tabla 4 Final)")
         lbl_p6.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         lbl_p6.setStyleSheet("color: #1e293b;")
         layout.addWidget(lbl_p6)
 
         txt_p6 = QLabel(
-            "Rastreo de accesibilidad partiendo del estado inicial (K₀):\n"
-            "Aquellos estados a los que ningún camino parte desde el estado inicial quedan aislados y se eliminan."
+            "Rastreo formal de accesibilidad partiendo del estado inicial (K₀):\n"
+            "Aquellos estados a los que ningún camino parte desde el estado inicial quedan aislados y son podados:"
         )
         txt_p6.setStyleSheet("color: #475569; font-size: 11px;")
         layout.addWidget(txt_p6)

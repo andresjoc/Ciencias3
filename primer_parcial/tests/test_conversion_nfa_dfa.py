@@ -178,3 +178,25 @@ def test_controlador_flujo_conversion_completo_kn(qapp):
 
     # El botón de la tabla ahora debe ocultarse porque ya es DFA
     assert vista.tabla_transiciones.boton_convertir_dfa.isHidden() is True
+
+
+def test_dialogo_grafo_tabla3_estados_inalcanzables(qapp):
+    """Verifica que el visor del grafo de la Tabla 3 en el diálogo marque en rojo los estados inalcanzables."""
+    nfa = AutomataNFA(alfabeto=["0", "1"], estados=["q0", "q1"], estado_inicial="q0")
+    nfa.agregar_transicion("q0", "0", "q0")
+    nfa.agregar_transicion("q0", "0", "q1")
+    nfa.agregar_estado_aceptacion("q1")
+
+    dialogo = DialogoConversionDFA(nfa)
+    assert hasattr(dialogo, "lienzo_tabla3")
+    lienzo = dialogo.lienzo_tabla3
+    assert lienzo.solo_lectura is True
+
+    # Verificar presencia de nodos
+    assert "K0" in lienzo.nodos
+    assert "K1" in lienzo.nodos
+
+    # K0 debe ser alcanzable (False) y K1 inalcanzable (True)
+    assert lienzo.nodos["K0"].es_inalcanzable is False
+    assert lienzo.nodos["K1"].es_inalcanzable is True
+

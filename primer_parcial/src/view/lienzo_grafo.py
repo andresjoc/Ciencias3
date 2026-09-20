@@ -64,8 +64,9 @@ class LienzoGrafo(QGraphicsView):
     mensaje_solicitado = pyqtSignal(str)
     grafo_limpiado = pyqtSignal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None, solo_lectura: bool = False) -> None:
         super().__init__(parent)
+        self.solo_lectura = solo_lectura
         self._escena = QGraphicsScene(self)
         self.setScene(self._escena)
         self._escena.setSceneRect(-2000, -2000, 4000, 4000)
@@ -230,6 +231,10 @@ class LienzoGrafo(QGraphicsView):
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Gestiona las pulsaciones de ratón según la herramienta activa."""
+        if self.solo_lectura:
+            super().mousePressEvent(event)
+            return
+
         # 0. Modo Desplazar (Pan con arrastre de mano)
         if self.modo_actual == self.MODO_DESPLAZAR:
             super().mousePressEvent(event)
@@ -433,6 +438,7 @@ class LienzoGrafo(QGraphicsView):
         y: float,
         es_inicial: bool = False,
         es_aceptacion: bool = False,
+        es_inalcanzable: bool = False,
     ) -> ItemNodoEstado:
         """Instancia e inserta un nodo en la escena gráfica."""
         if nombre in self.nodos:
@@ -440,6 +446,7 @@ class LienzoGrafo(QGraphicsView):
             nodo.setPos(x, y)
             nodo.establecer_es_inicial(es_inicial)
             nodo.establecer_es_aceptacion(es_aceptacion)
+            nodo.establecer_inalcanzable(es_inalcanzable)
             return nodo
 
         nodo = ItemNodoEstado(
@@ -449,6 +456,7 @@ class LienzoGrafo(QGraphicsView):
             es_inicial=es_inicial,
             es_aceptacion=es_aceptacion,
             lienzo=self,
+            es_inalcanzable=es_inalcanzable,
         )
         self._escena.addItem(nodo)
         self.nodos[nombre] = nodo
@@ -693,8 +701,9 @@ class LienzoGrafo(QGraphicsView):
         estado_inicial: Optional[str],
         estados_aceptacion: Set[str],
         posiciones_restauradas: Optional[Dict[str, Tuple[float, float]]] = None,
+        estados_inalcanzables: Optional[Set[str]] = None,
     ) -> None:
-        """Sincroniza el lienzo cuando el modelo cambia externamente (ej. tabla o deshacer)."""
+        """Sincroniza el lienzo cuando el modelo cambia externamente (ej. tabla, deshacer o visor Kn)."""
         # 1. Eliminar nodos que ya no están en Q
         for n_existente in list(self.nodos.keys()):
             if n_existente not in estados:
@@ -704,10 +713,12 @@ class LienzoGrafo(QGraphicsView):
 
         # 2. Agregar nodos nuevos preservando o restaurando posiciones
         for i, nombre in enumerate(estados):
+            es_inacc = bool(estados_inalcanzables and nombre in estados_inalcanzables)
             if nombre in self.nodos:
                 nodo = self.nodos[nombre]
                 nodo.establecer_es_inicial(nombre == estado_inicial)
                 nodo.establecer_es_aceptacion(nombre in estados_aceptacion)
+                nodo.establecer_inalcanzable(es_inacc)
                 if posiciones_restauradas and nombre in posiciones_restauradas:
                     px, py = posiciones_restauradas[nombre]
                     nodo.setPos(px, py)
@@ -726,6 +737,7 @@ class LienzoGrafo(QGraphicsView):
                     y=y,
                     es_inicial=(nombre == estado_inicial),
                     es_aceptacion=(nombre in estados_aceptacion),
+                    es_inalcanzable=es_inacc,
                 )
 
         # 3. Reconstruir aristas

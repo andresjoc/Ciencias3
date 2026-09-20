@@ -54,12 +54,14 @@ class ItemNodoEstado(QGraphicsItem):
         es_inicial: bool = False,
         es_aceptacion: bool = False,
         lienzo: Optional[LienzoGrafo] = None,
+        es_inalcanzable: bool = False,
     ) -> None:
         super().__init__()
         self.nombre = nombre
         self.es_inicial = es_inicial
         self.es_aceptacion = es_aceptacion
         self.lienzo = lienzo
+        self.es_inalcanzable = es_inalcanzable
         self.aristas_incidentes: List[ItemAristaTransicion] = []
         self._esta_resaltado = False
         self._en_hover = False
@@ -74,6 +76,13 @@ class ItemNodoEstado(QGraphicsItem):
         self.setZValue(2.0)  # Los nodos se dibujan por encima de las aristas
         self.actualizar_tooltip()
 
+    def establecer_inalcanzable(self, valor: bool) -> None:
+        """Establece si el estado es inalcanzable para representarlo con alerta roja."""
+        if self.es_inalcanzable != valor:
+            self.es_inalcanzable = valor
+            self.actualizar_tooltip()
+            self.update()
+
     def placeholderText(self) -> str:
         """Texto identificador de ubicación en la sección del editor gráfico."""
         tipos = []
@@ -81,6 +90,8 @@ class ItemNodoEstado(QGraphicsItem):
             tipos.append("Inicial (q₀)")
         if self.es_aceptacion:
             tipos.append("Aceptación (F)")
+        if self.es_inalcanzable:
+            tipos.append("⚠️ INALCANZABLE (Rojo)")
         tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
         return f"Sección Editor Gráfico: Nodo de Estado '{self.nombre}'{tipo_str}"
 
@@ -91,10 +102,20 @@ class ItemNodoEstado(QGraphicsItem):
             tipos.append("Inicial (q₀)")
         if self.es_aceptacion:
             tipos.append("Aceptación (F)")
+        if self.es_inalcanzable:
+            tipos.append("⚠️ INALCANZABLE (Podado en Paso 6)")
         tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
+
+        info_inalcanzable = ""
+        if self.es_inalcanzable:
+            info_inalcanzable = (
+                "\n• ✂ Estado Inalcanzable: Ningún camino desde el estado inicial (K₀) llega hasta aquí.\n"
+                "• Queda aislado y es eliminado en el Paso 6 al simplificar a la Tabla 4."
+            )
+
         self.setToolTip(
             f"Sección Editor Gráfico - Nodo de Estado: {self.nombre}{tipo_str}\n"
-            f"• Ubicación en pizarra: x={int(self.x())}, y={int(self.y())}\n"
+            f"• Ubicación en pizarra: x={int(self.x())}, y={int(self.y())}{info_inalcanzable}\n"
             f"• Doble clic: Renombrar identificador\n"
             f"• Clic derecho: Menú contextual (marcar inicial, aceptación o eliminar)\n"
             f"• Arrastrar: Reubicar estado en la pizarra"
@@ -172,23 +193,32 @@ class ItemNodoEstado(QGraphicsItem):
             painter.drawEllipse(rect_circulo.adjusted(-3.5, -3.5, 3.5, 3.5))
             painter.restore()
 
-        # 3. Estilos según selección, hover y resaltado en simulación
-        if self._esta_resaltado:
+        # 3. Estilos según inalcanzable, selección, hover y resaltado en simulación
+        if self.es_inalcanzable:
+            color_fondo = QColor("#fee2e2")  # Rojo pastel suave
+            color_borde = QColor("#dc2626")  # Borde rojo carmesí
+            grosor_borde = 3.0
+            color_texto = QColor("#991b1b")  # Texto rojo oscuro
+        elif self._esta_resaltado:
             color_fondo = QColor("#fef08a")  # Amarillo simulación activo
             color_borde = QColor("#ca8a04")
             grosor_borde = 3.2
+            color_texto = QColor("#0f172a")
         elif self.isSelected():
             color_fondo = QColor("#eff6ff")
             color_borde = QColor("#2563eb")  # Azul seleccionado
             grosor_borde = 2.8
+            color_texto = QColor("#0f172a")
         elif self._en_hover:
             color_fondo = QColor("#f0fdf4") if self.es_aceptacion else QColor("#f0f9ff")  # Blanco iluminado suave
             color_borde = QColor("#0284c7")  # Borde azul celeste luminoso
             grosor_borde = 2.6
+            color_texto = QColor("#0f172a")
         else:
             color_fondo = QColor("#ffffff")
             color_borde = QColor("#1e293b")  # Pizarra oscuro
             grosor_borde = 2.0
+            color_texto = QColor("#0f172a")
 
         # 4. Círculo principal del estado
         pluma = QPen(color_borde, grosor_borde)
@@ -206,10 +236,12 @@ class ItemNodoEstado(QGraphicsItem):
                 radio_interior * 2.0,
                 radio_interior * 2.0,
             )
+            color_interior = QColor("#dc2626") if self.es_inalcanzable else color_borde
+            painter.setPen(QPen(color_interior, 1.8 if self.es_inalcanzable else grosor_borde))
             painter.drawEllipse(rect_interior)
 
         # 5. Etiqueta con el nombre del estado (ej. q0)
-        painter.setPen(QColor("#0f172a"))
+        painter.setPen(color_texto)
         fuente = QFont("Segoe UI", 11, QFont.Weight.Bold)
         painter.setFont(fuente)
         painter.drawText(rect_circulo, Qt.AlignmentFlag.AlignCenter, self.nombre)
@@ -270,6 +302,9 @@ class ItemNodoEstado(QGraphicsItem):
 
     def contextMenuEvent(self, event: object) -> None:
         """Despliega el menú contextual de clic derecho para editar el estado."""
+        if self.lienzo and getattr(self.lienzo, "solo_lectura", False):
+            return
+
         menu = QMenu()
         accion_inicial = menu.addAction("Marcar como Inicial (q₀)")
         accion_inicial.setCheckable(True)
@@ -564,10 +599,17 @@ class ItemAristaTransicion(QGraphicsPathItem):
         """Dibuja la curva, la punta de flecha triangular y la etiqueta de símbolos con color distintivo si es ida/vuelta."""
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
+        es_inalcanzable = bool(
+            getattr(self.nodo_origen, "es_inalcanzable", False)
+            or getattr(self.nodo_destino, "es_inalcanzable", False)
+        )
         tipo_dir = self.obtener_tipo_bidireccional()
         if self.isSelected():
             color_arista = QColor("#2563eb")
             grosor = 2.6
+        elif es_inalcanzable:
+            color_arista = QColor("#ef4444")  # Rojo para transiciones de estados inalcanzables
+            grosor = 2.0
         elif self._en_hover:
             if tipo_dir == "ida":
                 color_arista = QColor("#15803d")
@@ -681,8 +723,16 @@ class ItemAristaTransicion(QGraphicsPathItem):
             painter.drawRoundedRect(rect_badge.adjusted(-3, -3, 3, 3), 7, 7)
             painter.restore()
 
+        es_inalcanzable = bool(
+            getattr(self.nodo_origen, "es_inalcanzable", False)
+            or getattr(self.nodo_destino, "es_inalcanzable", False)
+        )
         tipo_dir = self.obtener_tipo_bidireccional()
-        if tipo_dir == "ida":
+        if es_inalcanzable:
+            color_borde = QColor("#fca5a5")
+            color_fondo = QColor("#fef2f2")
+            color_texto = QColor("#b91c1c")
+        elif tipo_dir == "ida":
             color_borde = QColor("#86efac")
             color_fondo = QColor("#f0fdf4")
             color_texto = QColor("#15803d")
@@ -706,6 +756,9 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
     def contextMenuEvent(self, event: object) -> None:
         """Menú contextual para editar o eliminar la transición."""
+        if self.lienzo and getattr(self.lienzo, "solo_lectura", False):
+            return
+
         menu = QMenu()
         accion_editar = menu.addAction("✏ Editar Símbolos...")
         accion_eliminar = menu.addAction("🗑 Eliminar Transición")
@@ -722,6 +775,10 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Al hacer clic sobre la conexión en modo selección, abre el selector de caracteres."""
+        if self.lienzo and getattr(self.lienzo, "solo_lectura", False):
+            super().mousePressEvent(event)
+            return
+
         super().mousePressEvent(event)
         if (
             event.button() == Qt.MouseButton.LeftButton
@@ -732,6 +789,10 @@ class ItemAristaTransicion(QGraphicsPathItem):
 
     def mouseDoubleClickEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         """Doble clic abre el editor de símbolos de la transición."""
+        if self.lienzo and getattr(self.lienzo, "solo_lectura", False):
+            super().mouseDoubleClickEvent(event)
+            return
+
         if self.lienzo:
             self.lienzo.solicitar_editar_arista(self)
         super().mouseDoubleClickEvent(event)
