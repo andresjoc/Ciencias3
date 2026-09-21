@@ -40,7 +40,7 @@ class BarraHerramientasGrafo(QFrame):
             "QPushButton { background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; "
             "padding: 4px 8px; font-weight: 600; font-size: 11px; color: #334155; }"
             "QPushButton:hover { background-color: #f1f5f9; border-color: #94a3b8; }"
-            "QPushButton:checked { background-color: #dbeafe; border-color: #2563eb; color: #1d4ed8; font-weight: 700; }"
+            "QPushButton:checked { background-color: #d1fae5; border-color: #059669; color: #065f46; font-weight: 700; }"
         )
         self._inicializar_ui()
 
@@ -131,14 +131,14 @@ class BarraHerramientasGrafo(QFrame):
         etiqueta_zoom.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
         layout_fila1.addWidget(etiqueta_zoom)
 
-        self.boton_zoom_acercar = QPushButton("🔍+")
+        self.boton_zoom_acercar = QPushButton("＋ Zoom")
         self.boton_zoom_acercar.setToolTip(
             "Barra de Herramientas: Acercar zoom (+).\nO use la rueda del ratón hacia arriba sobre la pizarra."
         )
         self.boton_zoom_acercar.clicked.connect(self.zoom_acercar_solicitado.emit)
         layout_fila1.addWidget(self.boton_zoom_acercar)
 
-        self.boton_zoom_alejar = QPushButton("🔍-")
+        self.boton_zoom_alejar = QPushButton("－ Zoom")
         self.boton_zoom_alejar.setToolTip(
             "Barra de Herramientas: Alejar zoom (-).\nO use la rueda del ratón hacia abajo sobre la pizarra."
         )
@@ -167,7 +167,7 @@ class BarraHerramientasGrafo(QFrame):
         etiqueta_acciones.setStyleSheet("font-weight: bold; color: #64748b; font-size: 11px;")
         layout_fila2.addWidget(etiqueta_acciones)
 
-        self.boton_auto_organizar = QPushButton("🔄 Auto-distribuir")
+        self.boton_auto_organizar = QPushButton("⟳ Auto-distribuir")
         self.boton_auto_organizar.setToolTip(
             "Barra de Herramientas: Auto-distribuir.\n"
             "Ordena automáticamente todos los estados en un círculo geométrico armónico."
@@ -189,14 +189,14 @@ class BarraHerramientasGrafo(QFrame):
 
         layout_fila2.addSpacing(6)
 
-        # Botón de Conversión de AFN a AFD (Construcción de Subconjuntos)
+        # Botón de Conversión de AFN a AFD
         self.boton_convertir_dfa = QPushButton("⚡ Convertir AFN a AFD")
         self.boton_convertir_dfa.setStyleSheet(
-            "QPushButton { background-color: #f5f3ff; border: 1.5px solid #c4b5fd; color: #6d28d9; font-weight: bold; padding: 4px 12px; font-size: 11px; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #ede9fe; border-color: #8b5cf6; }"
+            "QPushButton { background-color: #fef3c7; border: 1.5px solid #fde047; color: #b45309; font-weight: bold; padding: 4px 12px; font-size: 11px; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #fde68a; border-color: #f59e0b; }"
         )
         self.boton_convertir_dfa.setToolTip(
-            "Barra de Herramientas: Conversión de AFN a AFD (Construcción de Subconjuntos).\n"
+            "Barra de Herramientas: Conversión de AFN a AFD.\n"
             "Convierte el autómata no determinista a determinista mostrando la tabla de proceso paso a paso."
         )
         self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
@@ -204,10 +204,10 @@ class BarraHerramientasGrafo(QFrame):
 
         layout_fila2.addSpacing(6)
 
-        self.boton_ayuda = QPushButton("📖 ¿Cómo usar el programa?")
+        self.boton_ayuda = QPushButton("💡 ¿Cómo usar el programa?")
         self.boton_ayuda.setStyleSheet(
-            "QPushButton { background-color: #eff6ff; border-color: #93c5fd; color: #1d4ed8; font-weight: bold; padding: 4px 12px; font-size: 11px; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #dbeafe; border-color: #60a5fa; }"
+            "QPushButton { background-color: #ecfdf5; border: 1.5px solid #a7f3d0; color: #047857; font-weight: bold; padding: 4px 12px; font-size: 11px; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #d1fae5; border-color: #6ee7b7; }"
         )
         self.boton_ayuda.setToolTip(
             "Barra de Herramientas: Ayuda.\nAbre la guía de uso interactiva con explicaciones detalladas."
@@ -230,10 +230,10 @@ class BarraHerramientasGrafo(QFrame):
         if es_nfa:
             self.boton_convertir_dfa.setText("⚡ Convertir AFN a AFD")
             self.boton_convertir_dfa.setStyleSheet(
-                "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; "
+                "QPushButton { background-color: #d97706; border: 1.5px solid #b45309; color: #ffffff; "
                 "font-weight: bold; padding: 4px 12px; border-radius: 6px; font-size: 11px; }"
-                "QPushButton:hover { background-color: #6d28d9; }"
-                "QPushButton:pressed { background-color: #5b21b6; }"
+                "QPushButton:hover { background-color: #b45309; }"
+                "QPushButton:pressed { background-color: #92400e; }"
             )
             self.boton_convertir_dfa.setToolTip(
                 "¡Autómata No Determinista detectado!\n"

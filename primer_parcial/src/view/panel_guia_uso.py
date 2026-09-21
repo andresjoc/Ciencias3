@@ -26,7 +26,7 @@ class PanelGuiaUso(QFrame):
         layout.setSpacing(10)
 
         # Encabezado visual
-        etiqueta_titulo = QLabel("📖 Manual Completo de Uso e Instrucciones")
+        etiqueta_titulo = QLabel("💡 Manual Completo de Uso e Instrucciones")
         etiqueta_titulo.setStyleSheet(
             "font-size: 15px; font-weight: bold; color: #1e293b; border: none; background: transparent;"
         )
@@ -43,14 +43,14 @@ class PanelGuiaUso(QFrame):
         contenido_html = """
         <div style="font-family: 'Segoe UI', -apple-system, sans-serif; color: #1e293b;">
 
-            <div style="background-color: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px;">
-                <b style="color: #1d4ed8; font-size: 13px;">¡Bienvenido a SimulaAutomata!</b><br>
+            <div style="background-color: #ecfdf5; border: 1.5px solid #a7f3d0; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px;">
+                <b style="color: #047857; font-size: 13px;">¡Bienvenido a SimulaAutomata!</b><br>
                 Plataforma interactiva para el diseño, simulación paso a paso en cinta y conversión formal de
                 <b>Autómatas Finitos Deterministas (AFD)</b> y <b>No Deterministas (AFN)</b>.
             </div>
 
             <!-- SECCIÓN 1: DIBUJO Y EDICIÓN DE GRAFOS -->
-            <h3 style="color: #2563eb; margin-top: 10px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 10px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 1. ¿Cómo diseñar y editar el autómata en el lienzo?
             </h3>
             <p>La barra superior de herramientas te permite alternar entre modos de dibujo:</p>
@@ -62,7 +62,7 @@ class PanelGuiaUso(QFrame):
                 <li><b>🗑️ Modo Borrar (Supr):</b> Haz clic sobre cualquier nodo o flecha para eliminarlo al instante.</li>
                 <li><b>Clic Derecho en un Estado:</b> Abre el menú contextual para:
                     <ul>
-                        <li><b>Marcar como Inicial:</b> Dibuja la flecha entrante azul formal desde la izquierda (→ <i>q₀</i>).</li>
+                        <li><b>Marcar como Inicial:</b> Dibuja la flecha entrante formal desde la izquierda (→ <i>q₀</i>).</li>
                         <li><b>Estado de Aceptación:</b> Alterna el <b>doble círculo concéntrico</b> formal de la teoría de la computación.</li>
                         <li><b>Renombrar o Eliminar</b> el estado.</li>
                     </ul>
@@ -71,7 +71,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 2: HISTORIAL DESHACER / REHACER -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 2. Historial de Acciones: Deshacer y Rehacer (Ctrl+Z / Ctrl+Y)
             </h3>
             <p>El sistema cuenta con un gestor completo de historial que registra todas las modificaciones:</p>
@@ -81,7 +81,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 3: ALFABETO FORMAL -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 3. Definición del Alfabeto Formal (Σ)
             </h3>
             <ul style="padding-left: 20px;">
@@ -91,7 +91,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 4: SIMULACIÓN EN CINTA -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 4. Simulación Paso a Paso en Cinta y Unidad de Control
             </h3>
             <ul style="padding-left: 20px;">
@@ -112,7 +112,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 5: NO DETERMINISMO (AFN) -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 5. Autómatas No Deterministas (AFN) y Ramas Paralelas
             </h3>
             <ul style="padding-left: 20px;">
@@ -125,11 +125,11 @@ class PanelGuiaUso(QFrame):
                 </li>
             </ul>
 
-            <!-- SECCIÓN 6: CONVERSIÓN AFN A AFD (MÉTODO DOCENTE) -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
-                6. Conversión Formal de AFN a AFD (Método de Subconjuntos Docente)
+            <!-- SECCIÓN 6: CONVERSIÓN AFN A AFD -->
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+                6. Conversión Formal de AFN a AFD
             </h3>
-            <p>Al detectar conexiones no deterministas, se habilita el botón púrpura <b>⚡ Convertir AFN a AFD</b>:</p>
+            <p>Al detectar conexiones no deterministas, se habilita el botón destacado <b>⚡ Convertir AFN a AFD</b>:</p>
             <ol style="padding-left: 20px;">
                 <li><b>Paso 1 (Identificación):</b> Construye la Tabla 1 del AFN identificando las transiciones múltiples.</li>
                 <li><b>Paso 2 (Expansión):</b> Genera la Tabla 2 expandiendo estados compuestos mediante unión formal:
@@ -155,7 +155,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 7: MATRIZ DE TRANSICIONES -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 7. Matriz de Transiciones y Gestión de Estados
             </h3>
             <ul style="padding-left: 20px;">
@@ -165,7 +165,7 @@ class PanelGuiaUso(QFrame):
             </ul>
 
             <!-- SECCIÓN 8: ATAJOS DE TECLADO -->
-            <h3 style="color: #2563eb; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
+            <h3 style="color: #047857; margin-top: 16px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 4px;">
                 8. Resumen de Atajos Rápidos de Teclado
             </h3>
             <table border="1" cellpadding="6" style="border-collapse: collapse; border-color: #cbd5e1; width: 100%; font-size: 11.5px;">

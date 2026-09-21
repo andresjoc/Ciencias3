@@ -253,8 +253,8 @@ class LienzoCinta(QGraphicsView):
                         color_fondo = QColor("#fecaca")  # Rojo rechazo
                         color_borde = QColor("#dc2626")
                 else:
-                    color_fondo = QColor("#dbeafe")  # Azul activo
-                    color_borde = QColor("#2563eb")
+                    color_fondo = QColor("#fef3c7")  # Ámbar activo
+                    color_borde = QColor("#d97706")
                 ancho_borde = 2.2
             else:
                 color_fondo = QColor("#f8fafc")
@@ -364,8 +364,8 @@ class LienzoCinta(QGraphicsView):
                     ancho_borde = 2.2
                     estilo_linea = Qt.PenStyle.SolidLine
                 elif es_paso_activo:
-                    color_fondo = QColor("#dbeafe")  # Azul activo
-                    color_borde = QColor("#2563eb")
+                    color_fondo = QColor("#fef3c7")  # Ámbar activo
+                    color_borde = QColor("#d97706")
                     ancho_borde = 2.2
                     estilo_linea = Qt.PenStyle.SolidLine
                 else:

@@ -235,7 +235,7 @@ class DialogoSeleccionSimbolos(QDialog):
         self.campo_resumen.setReadOnly(True)
         self.campo_resumen.setPlaceholderText("Ningún carácter seleccionado (la conexión quedará vacía)")
         self.campo_resumen.setToolTip("Muestra en tiempo real los caracteres seleccionados que se aplicarán a la conexión.")
-        self.campo_resumen.setStyleSheet("background-color: #f8fafc; font-weight: bold; color: #2563eb;")
+        self.campo_resumen.setStyleSheet("background-color: #f8fafc; font-weight: bold; color: #047857;")
         layout_principal.addWidget(self.campo_resumen)
 
         self._actualizar_resumen()

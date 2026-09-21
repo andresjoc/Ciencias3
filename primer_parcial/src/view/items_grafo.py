@@ -56,6 +56,7 @@ class ItemNodoEstado(QGraphicsItem):
         lienzo: Optional[LienzoGrafo] = None,
         es_inalcanzable: bool = False,
         permitir_movimiento: bool = True,
+        es_alcanzable: bool = False,
     ) -> None:
         super().__init__()
         self.nombre = nombre
@@ -63,6 +64,7 @@ class ItemNodoEstado(QGraphicsItem):
         self.es_aceptacion = es_aceptacion
         self.lienzo = lienzo
         self.es_inalcanzable = es_inalcanzable
+        self.es_alcanzable = es_alcanzable
         self.permitir_movimiento = permitir_movimiento
         self.aristas_incidentes: List[ItemAristaTransicion] = []
         self._esta_resaltado = False
@@ -100,6 +102,13 @@ class ItemNodoEstado(QGraphicsItem):
             self.actualizar_tooltip()
             self.update()
 
+    def establecer_alcanzable(self, valor: bool) -> None:
+        """Establece si el estado es formalmente alcanzable para representarlo en verde."""
+        if self.es_alcanzable != valor:
+            self.es_alcanzable = valor
+            self.actualizar_tooltip()
+            self.update()
+
     def placeholderText(self) -> str:
         """Texto identificador de ubicación en la sección del editor gráfico."""
         tipos = []
@@ -109,6 +118,8 @@ class ItemNodoEstado(QGraphicsItem):
             tipos.append("Aceptación (F)")
         if self.es_inalcanzable:
             tipos.append("⚠️ INALCANZABLE (Rojo)")
+        elif self.es_alcanzable:
+            tipos.append("🟢 ALCANZABLE (Verde)")
         tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
         return f"Sección Editor Gráfico: Nodo de Estado '{self.nombre}'{tipo_str}"
 
@@ -121,6 +132,8 @@ class ItemNodoEstado(QGraphicsItem):
             tipos.append("Aceptación (F)")
         if self.es_inalcanzable:
             tipos.append("⚠️ INALCANZABLE (Podado en Paso 6)")
+        elif self.es_alcanzable:
+            tipos.append("🟢 ALCANZABLE")
         tipo_str = f" [{', '.join(tipos)}]" if tipos else ""
 
         info_inalcanzable = ""
@@ -128,6 +141,11 @@ class ItemNodoEstado(QGraphicsItem):
             info_inalcanzable = (
                 "\n• ✂ Estado Inalcanzable: Ningún camino desde el estado inicial (K₀) llega hasta aquí.\n"
                 "• Queda aislado y es eliminado en el Paso 6 al simplificar a la Tabla 4."
+            )
+        elif self.es_alcanzable:
+            info_inalcanzable = (
+                "\n• 🟢 Estado Alcanzable: Existe al menos un camino dirigido desde el estado inicial (K₀).\n"
+                "• Se preserva formalmente en el AFD final simplificado."
             )
 
         self.setToolTip(
@@ -203,32 +221,37 @@ class ItemNodoEstado(QGraphicsItem):
             # Sombrita difusa proyectada hacia abajo
             painter.setBrush(QBrush(QColor(15, 23, 42, 45)))
             painter.drawEllipse(rect_circulo.translated(0, 3.5).adjusted(-2, -2, 2, 2))
-            # Resplandor exterior celeste iluminado
-            painter.setBrush(QBrush(QColor(56, 189, 248, 65)))
+            # Resplandor exterior esmeralda iluminado
+            painter.setBrush(QBrush(QColor(52, 211, 153, 65)))
             painter.drawEllipse(rect_circulo.adjusted(-7, -7, 7, 7))
-            painter.setBrush(QBrush(QColor(14, 165, 233, 95)))
+            painter.setBrush(QBrush(QColor(16, 185, 129, 95)))
             painter.drawEllipse(rect_circulo.adjusted(-3.5, -3.5, 3.5, 3.5))
             painter.restore()
 
-        # 3. Estilos según inalcanzable, selección, hover y resaltado en simulación
+        # 3. Estilos según inalcanzable, alcanzable, selección, hover y resaltado en simulación
         if self.es_inalcanzable:
             color_fondo = QColor("#fee2e2")  # Rojo pastel suave
             color_borde = QColor("#dc2626")  # Borde rojo carmesí
             grosor_borde = 3.0
             color_texto = QColor("#991b1b")  # Texto rojo oscuro
+        elif self.es_alcanzable:
+            color_fondo = QColor("#dcfce7")  # Verde menta claro pastel
+            color_borde = QColor("#16a34a")  # Borde verde esmeralda formal
+            grosor_borde = 3.0
+            color_texto = QColor("#14532d")  # Texto verde oscuro de alto contraste
         elif self._esta_resaltado:
             color_fondo = QColor("#fef08a")  # Amarillo simulación activo
             color_borde = QColor("#ca8a04")
             grosor_borde = 3.2
             color_texto = QColor("#0f172a")
         elif self.isSelected():
-            color_fondo = QColor("#eff6ff")
-            color_borde = QColor("#2563eb")  # Azul seleccionado
+            color_fondo = QColor("#ecfdf5")
+            color_borde = QColor("#059669")  # Esmeralda seleccionado
             grosor_borde = 2.8
             color_texto = QColor("#0f172a")
         elif self._en_hover:
-            color_fondo = QColor("#f0fdf4") if self.es_aceptacion else QColor("#f0f9ff")  # Blanco iluminado suave
-            color_borde = QColor("#0284c7")  # Borde azul celeste luminoso
+            color_fondo = QColor("#f0fdf4")  # Blanco iluminado suave
+            color_borde = QColor("#059669")  # Borde esmeralda luminoso
             grosor_borde = 2.6
             color_texto = QColor("#0f172a")
         else:
@@ -253,8 +276,13 @@ class ItemNodoEstado(QGraphicsItem):
                 radio_interior * 2.0,
                 radio_interior * 2.0,
             )
-            color_interior = QColor("#dc2626") if self.es_inalcanzable else color_borde
-            painter.setPen(QPen(color_interior, 1.8 if self.es_inalcanzable else grosor_borde))
+            if self.es_inalcanzable:
+                color_interior = QColor("#dc2626")
+            elif self.es_alcanzable:
+                color_interior = QColor("#16a34a")
+            else:
+                color_interior = color_borde
+            painter.setPen(QPen(color_interior, 1.8 if (self.es_inalcanzable or self.es_alcanzable) else grosor_borde))
             painter.drawEllipse(rect_interior)
 
         # 5. Etiqueta con el nombre del estado (ej. q0)
@@ -265,9 +293,9 @@ class ItemNodoEstado(QGraphicsItem):
 
     def _dibujar_flecha_inicial(self, painter: QPainter) -> None:
         """Dibuja una flecha horizontal formal que apunta al estado desde la izquierda."""
-        pluma_inicio = QPen(QColor("#0284c7"), 2.4)
+        pluma_inicio = QPen(QColor("#047857"), 2.4)
         painter.setPen(pluma_inicio)
-        painter.setBrush(QBrush(QColor("#0284c7")))
+        painter.setBrush(QBrush(QColor("#047857")))
 
         longitud_flecha = 28.0
         x_fin = -self.RADIO
@@ -287,7 +315,7 @@ class ItemNodoEstado(QGraphicsItem):
 
         # Etiqueta "inicio" centrada justo sobre el asta de la flecha
         painter.setFont(QFont("Segoe UI", 8, QFont.Weight.Bold))
-        painter.setPen(QColor("#0369a1"))
+        painter.setPen(QColor("#065f46"))
         rect_texto = QRectF(x_inicio - 2.0, -16.0, longitud_flecha + 4.0, 14.0)
         painter.drawText(rect_texto, Qt.AlignmentFlag.AlignCenter, "inicio")
 
@@ -626,7 +654,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
         )
         tipo_dir = self.obtener_tipo_bidireccional()
         if self.isSelected():
-            color_arista = QColor("#2563eb")
+            color_arista = QColor("#059669")
             grosor = 2.6
         elif es_inalcanzable:
             color_arista = QColor("#ef4444")  # Rojo para transiciones de estados inalcanzables
@@ -637,7 +665,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
             elif tipo_dir == "vuelta":
                 color_arista = QColor("#b91c1c")
             else:
-                color_arista = QColor("#0284c7")
+                color_arista = QColor("#059669")
             grosor = 2.5
         elif tipo_dir == "ida":
             color_arista = QColor("#16a34a")  # Verde para ida
@@ -738,7 +766,7 @@ class ItemAristaTransicion(QGraphicsPathItem):
             painter.setBrush(QBrush(QColor(15, 23, 42, 50)))
             painter.drawRoundedRect(rect_badge.translated(0, 2.5), 6, 6)
             # Halo luminoso alrededor de la pastilla
-            halo_bg = QColor(color_arista) if color_arista else QColor("#38bdf8")
+            halo_bg = QColor(color_arista) if color_arista else QColor("#34d399")
             halo_bg.setAlpha(65)
             painter.setBrush(QBrush(halo_bg))
             painter.drawRoundedRect(rect_badge.adjusted(-3, -3, 3, 3), 7, 7)
@@ -762,9 +790,9 @@ class ItemAristaTransicion(QGraphicsPathItem):
             color_fondo = QColor("#fef2f2")
             color_texto = QColor("#b91c1c")
         else:
-            color_borde = QColor("#0284c7") if self._en_hover else QColor("#cbd5e1")
-            color_fondo = QColor("#f0f9ff") if self._en_hover else QColor("#ffffff")
-            color_texto = QColor("#0369a1") if self._en_hover else QColor("#0f172a")
+            color_borde = QColor("#059669") if self._en_hover else QColor("#cbd5e1")
+            color_fondo = QColor("#ecfdf5") if self._en_hover else QColor("#ffffff")
+            color_texto = QColor("#065f46") if self._en_hover else QColor("#0f172a")
 
         # Pastilla con bordes redondeados
         painter.setPen(QPen(color_borde, 1.4 if self._en_hover else 1.2))

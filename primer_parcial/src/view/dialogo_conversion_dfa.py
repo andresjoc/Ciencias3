@@ -52,7 +52,7 @@ class DialogoConversionDFA(QDialog):
         self.nfa = nfa
         self.resultado: Optional[ResultadoConversionMetodoProfe] = None
 
-        self.setWindowTitle("Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos del Profesor)")
+        self.setWindowTitle("Procedimiento de Conversión: AFN a AFD")
         self.resize(1040, 740)
         self.setMinimumSize(880, 580)
 
@@ -76,7 +76,7 @@ class DialogoConversionDFA(QDialog):
         layout_cab = QVBoxLayout(marco_cabecera)
         layout_cab.setSpacing(4)
 
-        titulo = QLabel("Procedimiento de Conversión: AFN a AFD (Método de Subconjuntos)")
+        titulo = QLabel("Procedimiento de Conversión: AFN a AFD")
         titulo.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
         titulo.setStyleSheet("color: #0f172a;")
         layout_cab.addWidget(titulo)
@@ -94,7 +94,7 @@ class DialogoConversionDFA(QDialog):
             resumen = QLabel(
                 f"AFN Base: Q = {q_orig_str} | Σ = {{{', '.join(res.alfabeto)}}} | Estado inicial = → {res.estado_inicial_nfa} | Finales F = {f_orig_str}"
             )
-            resumen.setStyleSheet("color: #0369a1; font-weight: 600; font-size: 11px; margin-top: 2px;")
+            resumen.setStyleSheet("color: #047857; font-weight: 600; font-size: 11px; margin-top: 2px;")
             layout_cab.addWidget(resumen)
 
         layout_principal.addWidget(marco_cabecera)
@@ -103,7 +103,7 @@ class DialogoConversionDFA(QDialog):
         self.pestanas = QTabWidget()
         self.pestanas.setStyleSheet(
             "QTabBar::tab { font-weight: bold; font-size: 11px; padding: 8px 16px; }"
-            "QTabBar::tab:selected { color: #1d4ed8; border-bottom: 2px solid #2563eb; }"
+            "QTabBar::tab:selected { color: #047857; border-bottom: 2px solid #059669; }"
         )
 
         # Pestaña 1: Pasos 1 y 2 (Tablas 1 y 2)
@@ -113,7 +113,7 @@ class DialogoConversionDFA(QDialog):
         self.pestanas.addTab(self._crear_pestana_pasos_3_y_4(), "🏷️ Pasos 3 y 4: Notación Kn y Estados Finales")
 
         # Pestaña 3: Pasos 5 y 6 (Poda de Inalcanzables y Tabla 4 Final)
-        self.pestanas.addTab(self._crear_pestana_pasos_5_y_6(), "🎯 Pasos 5 y 6: Grafo y AFD Final Simplificado")
+        self.pestanas.addTab(self._crear_pestana_pasos_5_y_6(), "⚡ Pasos 5 y 6: Grafo y AFD Final Simplificado")
 
         layout_principal.addWidget(self.pestanas, stretch=1)
 
@@ -129,10 +129,10 @@ class DialogoConversionDFA(QDialog):
 
         self.boton_aplicar = QPushButton("✔ Aplicar AFD al Editor y Matriz (Notación Kn)")
         self.boton_aplicar.setStyleSheet(
-            "QPushButton { background-color: #0284c7; color: white; font-weight: bold; "
+            "QPushButton { background-color: #059669; color: white; font-weight: bold; "
             "padding: 8px 18px; border-radius: 6px; font-size: 12px; }"
-            "QPushButton:hover { background-color: #0369a1; }"
-            "QPushButton:pressed { background-color: #075985; }"
+            "QPushButton:hover { background-color: #047857; }"
+            "QPushButton:pressed { background-color: #064e3b; }"
         )
         self.boton_aplicar.setToolTip(
             "Sustituye el autómata actual por el AFD final simplificado en notación Kn (Tabla 4),\n"
@@ -184,7 +184,7 @@ class DialogoConversionDFA(QDialog):
 
         lbl_t1 = QLabel("Tabla 1: Transiciones del AFN inicial")
         lbl_t1.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        lbl_t1.setStyleSheet("color: #0369a1;")
+        lbl_t1.setStyleSheet("color: #047857;")
         layout.addWidget(lbl_t1)
 
         tabla1 = self._crear_tabla_estilizada(
@@ -198,7 +198,7 @@ class DialogoConversionDFA(QDialog):
             if fila.es_aceptacion:
                 it_est.setForeground(QColor("#059669"))
             if fila.es_inicial:
-                it_est.setForeground(QColor("#0284c7"))
+                it_est.setForeground(QColor("#047857"))
             tabla1.setItem(fila_idx, 0, it_est)
 
             for c_idx, sim in enumerate(res.alfabeto, start=1):
@@ -226,7 +226,7 @@ class DialogoConversionDFA(QDialog):
 
         lbl_t2 = QLabel("Tabla 2: Expansión de estados compuestos")
         lbl_t2.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        lbl_t2.setStyleSheet("color: #0369a1;")
+        lbl_t2.setStyleSheet("color: #047857;")
         layout.addWidget(lbl_t2)
 
         tabla2 = self._crear_tabla_estilizada(
@@ -238,7 +238,7 @@ class DialogoConversionDFA(QDialog):
             it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             if fila.es_compuesto:
-                it_est.setForeground(QColor("#7c3aed"))
+                it_est.setForeground(QColor("#b45309"))
             elif fila.es_aceptacion:
                 it_est.setForeground(QColor("#059669"))
             tabla2.setItem(fila_idx, 0, it_est)
@@ -293,7 +293,7 @@ class DialogoConversionDFA(QDialog):
             it0.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             it0.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             if f.es_inicial:
-                it0.setForeground(QColor("#0284c7"))
+                it0.setForeground(QColor("#047857"))
             tabla_kn.setItem(fila_idx, 0, it0)
 
             it1 = QTableWidgetItem(f.subconjunto_formateado)
@@ -344,7 +344,7 @@ class DialogoConversionDFA(QDialog):
 
         lbl_t3 = QLabel("Tabla 3: Transiciones formalizada en términos de Kn")
         lbl_t3.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        lbl_t3.setStyleSheet("color: #0369a1; margin-top: 6px;")
+        lbl_t3.setStyleSheet("color: #047857; margin-top: 6px;")
         layout.addWidget(lbl_t3)
 
         tabla3 = self._crear_tabla_estilizada(
@@ -358,7 +358,7 @@ class DialogoConversionDFA(QDialog):
             if f.es_final:
                 it_est.setForeground(QColor("#059669"))
             if f.es_inicial:
-                it_est.setForeground(QColor("#0284c7"))
+                it_est.setForeground(QColor("#047857"))
             tabla3.setItem(fila_idx, 0, it_est)
 
             for c_idx, sim in enumerate(res.alfabeto, start=1):
@@ -428,16 +428,16 @@ class DialogoConversionDFA(QDialog):
         barra_top = QHBoxLayout()
         barra_top.setSpacing(8)
 
-        lbl_titulo_grafo = QLabel("🖼️ Grafo Completo del AFD (Tabla 3)")
+        lbl_titulo_grafo = QLabel("Grafo Completo del AFD (Tabla 3)")
         lbl_titulo_grafo.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         lbl_titulo_grafo.setStyleSheet("color: #0f172a;")
         barra_top.addWidget(lbl_titulo_grafo)
 
         # Pastillas informativas de la leyenda
-        lbl_leg_ini = QLabel("🔵 → K₀ (Inicial)")
+        lbl_leg_ini = QLabel("➔ → K₀ (Inicial)")
         lbl_leg_ini.setStyleSheet(
-            "color: #0284c7; font-weight: 600; font-size: 11px; background: #f0f9ff; "
-            "border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;"
+            "color: #065f46; font-weight: 600; font-size: 11px; background: #ecfdf5; "
+            "border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;"
         )
         barra_top.addWidget(lbl_leg_ini)
 
@@ -475,6 +475,7 @@ class DialogoConversionDFA(QDialog):
         estado_inicial_tabla3 = next((f.etiqueta for f in res.tabla3_formalizada if f.es_inicial), "K0")
         estados_aceptacion_tabla3 = {f.etiqueta for f in res.tabla3_formalizada if f.es_final}
         estados_inalcanzables_set = set(res.accesibilidad.estados_inalcanzables)
+        estados_alcanzables_set = set(res.accesibilidad.estados_alcanzables)
 
         transiciones_tabla3 = {}
         for f in res.tabla3_formalizada:
@@ -490,6 +491,7 @@ class DialogoConversionDFA(QDialog):
             estado_inicial=estado_inicial_tabla3,
             estados_aceptacion=estados_aceptacion_tabla3,
             estados_inalcanzables=estados_inalcanzables_set,
+            estados_alcanzables=estados_alcanzables_set,
         )
         lienzo_tabla3.auto_organizar_nodos()
         layout_marco.addWidget(lienzo_tabla3)
@@ -570,7 +572,7 @@ class DialogoConversionDFA(QDialog):
 
         lbl_t4 = QLabel("Tabla 4: AFD final simplificado y mínimo")
         lbl_t4.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-        lbl_t4.setStyleSheet("color: #0369a1; margin-top: 6px;")
+        lbl_t4.setStyleSheet("color: #047857; margin-top: 6px;")
         layout.addWidget(lbl_t4)
 
         tabla4 = self._crear_tabla_estilizada(
@@ -584,7 +586,7 @@ class DialogoConversionDFA(QDialog):
             if f.es_final:
                 it_est.setForeground(QColor("#059669"))
             if f.es_inicial:
-                it_est.setForeground(QColor("#0284c7"))
+                it_est.setForeground(QColor("#047857"))
             tabla4.setItem(fila_idx, 0, it_est)
 
             for c_idx, sim in enumerate(res.alfabeto, start=1):

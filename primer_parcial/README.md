@@ -191,7 +191,7 @@ dist\SimulaAutomata.exe
 - 📖 **¿Cómo usar el programa?:** Abre la guía interactiva completa en la pestaña derecha.
 
 ### 2. Clic Derecho sobre los Estados
-- **Marcar como Inicial ($q_0$):** Agrega la flecha formal entrante azul $\to q$.
+- **Marcar como Inicial ($q_0$):** Agrega la flecha formal entrante $\to q$.
 - **Estado de Aceptación ($F$):** Agrega el doble círculo concéntrico característico.
 - **Renombrar Estado:** Permite cambiar el identificador del estado (ej. $q_0 \to s_0$).
 - **Eliminar Estado:** Remueve el estado y todas sus flechas asociadas.

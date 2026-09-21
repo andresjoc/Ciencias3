@@ -146,15 +146,15 @@ class PanelPasoAPasoConversion(QWidget):
     def _construir_encabezado(self, res: ResultadoConversionMetodoProfe) -> None:
         encabezado = QFrame()
         encabezado.setStyleSheet(
-            "QFrame { background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1e293b, stop:1 #334155); "
+            "QFrame { background-color: #ffffff; border: 1.5px solid #cbd5e1; "
             "border-radius: 8px; padding: 14px; }"
         )
         lay = QVBoxLayout(encabezado)
         lay.setSpacing(6)
 
-        tit = QLabel("📐 Proceso Formal de Conversión AFN → AFD (Método de Subconjuntos)")
+        tit = QLabel("📐 Proceso Formal de Conversión AFN → AFD")
         tit.setFont(QFont("Segoe UI", 12, QFont.Weight.Bold))
-        tit.setStyleSheet("color: #ffffff; border: none; background: transparent;")
+        tit.setStyleSheet("color: #0f172a; border: none; background: transparent;")
         lay.addWidget(tit)
 
         sub = QLabel(
@@ -164,7 +164,7 @@ class PanelPasoAPasoConversion(QWidget):
             f"• Estados Accesibles Finales: {len(res.tabla4_final)}"
         )
         sub.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
-        sub.setStyleSheet("color: #93c5fd; border: none; background: transparent;")
+        sub.setStyleSheet("color: #047857; border: none; background: transparent;")
         lay.addWidget(sub)
 
         self.layout_contenido.addWidget(encabezado)
@@ -191,7 +191,7 @@ class PanelPasoAPasoConversion(QWidget):
             if fila.es_aceptacion:
                 it_est.setForeground(QColor("#059669"))
             if fila.es_inicial:
-                it_est.setForeground(QColor("#0284c7"))
+                it_est.setForeground(QColor("#047857"))
             tabla1.setItem(fila_idx, 0, it_est)
 
             for c_idx, sim in enumerate(res.alfabeto, start=1):
@@ -201,7 +201,7 @@ class PanelPasoAPasoConversion(QWidget):
                 it_d.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if len(dest) > 1:
                     it_d.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-                    it_d.setForeground(QColor("#7c3aed"))
+                    it_d.setForeground(QColor("#b45309"))
                 tabla1.setItem(fila_idx, c_idx, it_d)
 
         lay.addWidget(tabla1)
@@ -227,7 +227,7 @@ class PanelPasoAPasoConversion(QWidget):
             it_est.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             it_est.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             if fila.es_compuesto:
-                it_est.setForeground(QColor("#7c3aed"))
+                it_est.setForeground(QColor("#b45309"))
             elif fila.es_aceptacion:
                 it_est.setForeground(QColor("#059669"))
             tabla2.setItem(fila_idx, 0, it_est)
@@ -301,7 +301,7 @@ class PanelPasoAPasoConversion(QWidget):
             it_kn.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             it_kn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             if f.es_inicial:
-                it_kn.setForeground(QColor("#0284c7"))
+                it_kn.setForeground(QColor("#047857"))
             elif f.es_final:
                 it_kn.setForeground(QColor("#059669"))
             tabla3.setItem(fila_idx, 0, it_kn)
@@ -350,15 +350,15 @@ class PanelPasoAPasoConversion(QWidget):
         barra_leg = QHBoxLayout()
         barra_leg.setSpacing(6)
 
-        lbl_tit_g = QLabel("🖼️ Grafo Completo (Tabla 3):")
+        lbl_tit_g = QLabel("Grafo Completo (Tabla 3):")
         lbl_tit_g.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         lbl_tit_g.setStyleSheet("color: #0f172a;")
         barra_leg.addWidget(lbl_tit_g)
 
-        lbl_leg_ini = QLabel("🔵 → K₀ (Inicial)")
+        lbl_leg_ini = QLabel("➔ → K₀ (Inicial)")
         lbl_leg_ini.setStyleSheet(
-            "color: #0284c7; font-weight: 600; font-size: 10.5px; background: #f0f9ff; "
-            "border: 1px solid #bae6fd; padding: 2px 6px; border-radius: 4px;"
+            "color: #065f46; font-weight: 600; font-size: 10.5px; background: #ecfdf5; "
+            "border: 1px solid #a7f3d0; padding: 2px 6px; border-radius: 4px;"
         )
         barra_leg.addWidget(lbl_leg_ini)
 
@@ -395,6 +395,7 @@ class PanelPasoAPasoConversion(QWidget):
         estado_inicial_tabla3 = next((f.etiqueta for f in res.tabla3_formalizada if f.es_inicial), "K0")
         estados_aceptacion_tabla3 = {f.etiqueta for f in res.tabla3_formalizada if f.es_final}
         estados_inalcanzables_set = set(res.accesibilidad.estados_inalcanzables)
+        estados_alcanzables_set = set(res.accesibilidad.estados_alcanzables)
 
         transiciones_tabla3 = {}
         for f in res.tabla3_formalizada:
@@ -410,6 +411,7 @@ class PanelPasoAPasoConversion(QWidget):
             estado_inicial=estado_inicial_tabla3,
             estados_aceptacion=estados_aceptacion_tabla3,
             estados_inalcanzables=estados_inalcanzables_set,
+            estados_alcanzables=estados_alcanzables_set,
         )
         lienzo.auto_organizar_nodos()
         lay_g.addWidget(lienzo)
@@ -484,7 +486,7 @@ class PanelPasoAPasoConversion(QWidget):
             it_kn.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             it_kn.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             if f.es_inicial:
-                it_kn.setForeground(QColor("#0284c7"))
+                it_kn.setForeground(QColor("#047857"))
             elif f.es_final:
                 it_kn.setForeground(QColor("#059669"))
             tabla4.setItem(fila_idx, 0, it_kn)

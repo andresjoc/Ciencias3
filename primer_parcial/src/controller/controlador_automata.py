@@ -510,6 +510,7 @@ class ControladorAutomata:
             if hasattr(self.vista, "panel_simulacion"):
                 self.vista.panel_simulacion.mostrar_error_evaluacion(str(error))
             self.vista.mostrar_mensaje_estado(f"Error de validación: {error}")
+            self._mostrar_alerta_advertencia("Error en Cadena de Entrada", str(error))
             return False
 
     def _obtener_total_pasos(self) -> int:
@@ -650,7 +651,7 @@ class ControladorAutomata:
         if not self.modelo.estados_aceptacion:
             mensaje_alerta = (
                 "No se puede convertir a AFD porque el autómata no tiene ningún estado final (de aceptación) definido.\n\n"
-                "La conversión formal por subconjuntos requiere el conjunto de estados de aceptación F para determinar los estados finales del AFD (Paso 4).\n\n"
+                "La conversión formal requiere el conjunto de estados de aceptación F para determinar los estados finales del AFD (Paso 4).\n\n"
                 "Para definir un estado final:\n"
                 "• Haga clic derecho sobre un estado en el lienzo y seleccione «Estado de Aceptación (F)» (se dibujará con doble círculo), o\n"
                 "• Active la casilla «Aceptación (F)» en la matriz de transiciones."
@@ -665,7 +666,7 @@ class ControladorAutomata:
 
         if not self.modelo.es_no_deterministico():
             self.vista.mostrar_mensaje_estado(
-                "El autómata actual ya es determinista (AFD). No requiere conversión por subconjuntos."
+                "El autómata actual ya es determinista (AFD). No requiere conversión."
             )
             import os
             if not os.environ.get("PYTEST_CURRENT_TEST"):
@@ -674,7 +675,7 @@ class ControladorAutomata:
                     "Autómata ya es Determinista",
                     "El autómata actual ya es Determinista (AFD).\n\n"
                     "Cada estado tiene a lo sumo una transición definida por símbolo. "
-                    "La conversión de subconjuntos de Rabin-Scott aplica a autómatas no deterministas (AFN) con transiciones múltiples."
+                    "La conversión formal aplica a autómatas no deterministas (AFN) con transiciones múltiples."
                 )
             return
 

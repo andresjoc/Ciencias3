@@ -72,7 +72,7 @@ class VentanaPrincipal(QMainWindow):
         )
 
         # --- Panel Izquierdo: Editor de Grafo estilo Draw.io ---
-        caja_grafo = QGroupBox("🎨 Editor Visual de Grafo (Arrastrar estados y conectar flechas)")
+        caja_grafo = QGroupBox("✎ Editor Visual de Grafo (Arrastrar estados y conectar flechas)")
         caja_grafo.setStyleSheet(
             "QGroupBox { font-weight: bold; color: #1e293b; border: 1px solid #cbd5e1; "
             "border-radius: 8px; margin-top: 8px; padding-top: 10px; background-color: #ffffff; }"
@@ -127,7 +127,7 @@ class VentanaPrincipal(QMainWindow):
 
         # Pestaña 4: Guía Rápida de Uso e Instrucciones
         self.panel_guia_uso = PanelGuiaUso(self)
-        self.pestanas_derecha.addTab(self.panel_guia_uso, "📖 Guía de Uso")
+        self.pestanas_derecha.addTab(self.panel_guia_uso, "💡 Guía de Uso")
 
         divisor_central.addWidget(self.pestanas_derecha)
 

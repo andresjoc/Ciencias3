@@ -86,7 +86,7 @@ class PanelSimulacion(QGroupBox):
         self.boton_siguiente.setEnabled(False)
         layout_controles.addWidget(self.boton_siguiente)
 
-        self.boton_ejecutar_todo = QPushButton("Ejecutar Todo ⏭")
+        self.boton_ejecutar_todo = QPushButton("Ejecutar Todo ▶▶")
         self.boton_ejecutar_todo.setStyleSheet(estilo_controles)
         self.boton_ejecutar_todo.setToolTip("Recorrer toda la cinta automáticamente paso a paso con animación temporizada.")
         self.boton_ejecutar_todo.clicked.connect(self.ejecutar_todo_solicitado.emit)
@@ -191,7 +191,7 @@ class PanelSimulacion(QGroupBox):
             else:
                 self.insignia_estado.setText(f"EN PROGRESO (NFA) — Paso {paso_actual + 1} de {total_pasos}")
                 self.insignia_estado.setStyleSheet(
-                    "background-color: #eff6ff; color: #1d4ed8; padding: 4px 10px; "
+                    "background-color: #fef3c7; color: #b45309; padding: 4px 10px; "
                     "border-radius: 6px; font-weight: bold;"
                 )
                 ramas_activas_en_paso = [
@@ -227,7 +227,7 @@ class PanelSimulacion(QGroupBox):
             else:
                 self.insignia_estado.setText(f"EN PROGRESO — Paso {paso_actual + 1} de {total_pasos}")
                 self.insignia_estado.setStyleSheet(
-                    "background-color: #eff6ff; color: #1d4ed8; padding: 4px 10px; "
+                    "background-color: #fef3c7; color: #b45309; padding: 4px 10px; "
                     "border-radius: 6px; font-weight: bold;"
                 )
                 simbolo_leido = paso_info.simbolo

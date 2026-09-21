@@ -54,12 +54,12 @@ QLineEdit {
     border-radius: 6px;
     padding: 6px 10px;
     font-size: 13px;
-    selection-background-color: #3b82f6;
+    selection-background-color: #059669;
     selection-color: #ffffff;
 }
 
 QLineEdit:focus {
-    border: 2px solid #2563eb;
+    border: 2px solid #059669;
     background-color: #ffffff;
 }
 
@@ -91,9 +91,9 @@ QPushButton:pressed {
 }
 
 QPushButton:checked {
-    background-color: #dbeafe;
-    border-color: #2563eb;
-    color: #1d4ed8;
+    background-color: #d1fae5;
+    border-color: #059669;
+    color: #065f46;
     font-weight: 700;
 }
 
@@ -103,18 +103,18 @@ QPushButton:disabled {
     border-color: #e2e8f0;
 }
 
-/* Botones primarios (azules) */
+/* Botones primarios */
 QPushButton[clase="primario"] {
-    background-color: #2563eb;
+    background-color: #059669;
     color: #ffffff;
-    border: 1.5px solid #1d4ed8;
+    border: 1.5px solid #047857;
     padding: 5px 12px;
     font-weight: 600;
     font-size: 11px;
 }
 
 QPushButton[clase="primario"]:hover {
-    background-color: #1d4ed8;
+    background-color: #047857;
 }
 
 /* Pestañas (QTabWidget) */
@@ -145,7 +145,7 @@ QTabBar::tab:hover {
 
 QTabBar::tab:selected {
     background-color: #ffffff;
-    color: #2563eb;
+    color: #047857;
     border-color: #cbd5e1;
     font-weight: 700;
 }
@@ -158,7 +158,7 @@ QTableWidget {
     border: 1px solid #cbd5e1;
     border-radius: 6px;
     alternate-background-color: #f8fafc;
-    selection-background-color: #dbeafe;
+    selection-background-color: #d1fae5;
     selection-color: #1e293b;
     font-size: 13px;
 }
@@ -179,7 +179,7 @@ QSplitter::handle {
 }
 
 QSplitter::handle:hover {
-    background-color: #3b82f6;
+    background-color: #059669;
 }
 
 /* Barras de desplazamiento */
@@ -247,8 +247,8 @@ QCheckBox::indicator {
 }
 
 QCheckBox::indicator:checked {
-    background-color: #2563eb;
-    border-color: #1d4ed8;
+    background-color: #059669;
+    border-color: #047857;
 }
 
 /* Cuadros de texto multilínea y visores de ayuda */
@@ -279,7 +279,7 @@ def aplicar_tema_claro(app: QApplication) -> None:
     paleta.setColor(QPalette.ColorRole.Button, QColor("#ffffff"))
     paleta.setColor(QPalette.ColorRole.ButtonText, QColor("#0f172a"))
     paleta.setColor(QPalette.ColorRole.BrightText, QColor("#ef4444"))
-    paleta.setColor(QPalette.ColorRole.Highlight, QColor("#2563eb"))
+    paleta.setColor(QPalette.ColorRole.Highlight, QColor("#059669"))
     paleta.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
 
     app.setPalette(paleta)

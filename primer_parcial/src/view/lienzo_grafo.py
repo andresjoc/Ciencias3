@@ -158,7 +158,7 @@ class LienzoGrafo(QGraphicsView):
 
     def _inicializar_linea_guia(self) -> None:
         """Crea la línea elástica visible al conectar estados."""
-        pluma = QPen(QColor("#2563eb"), 2.2, Qt.PenStyle.DashLine)
+        pluma = QPen(QColor("#059669"), 2.2, Qt.PenStyle.DashLine)
         self._linea_guia_temporal = self._escena.addLine(0, 0, 0, 0, pluma)
         self._linea_guia_temporal.setZValue(10.0)
         self._linea_guia_temporal.setEnabled(False)
@@ -460,6 +460,7 @@ class LienzoGrafo(QGraphicsView):
         es_inicial: bool = False,
         es_aceptacion: bool = False,
         es_inalcanzable: bool = False,
+        es_alcanzable: bool = False,
     ) -> ItemNodoEstado:
         """Instancia e inserta un nodo en la escena gráfica."""
         if nombre in self.nodos:
@@ -468,6 +469,7 @@ class LienzoGrafo(QGraphicsView):
             nodo.establecer_es_inicial(es_inicial)
             nodo.establecer_es_aceptacion(es_aceptacion)
             nodo.establecer_inalcanzable(es_inalcanzable)
+            nodo.establecer_alcanzable(es_alcanzable)
             nodo.establecer_permitir_movimiento(not self.modo_estatico)
             return nodo
 
@@ -480,6 +482,7 @@ class LienzoGrafo(QGraphicsView):
             lienzo=self,
             es_inalcanzable=es_inalcanzable,
             permitir_movimiento=not self.modo_estatico,
+            es_alcanzable=es_alcanzable,
         )
         self._escena.addItem(nodo)
         self.nodos[nombre] = nodo
@@ -725,6 +728,7 @@ class LienzoGrafo(QGraphicsView):
         estados_aceptacion: Set[str],
         posiciones_restauradas: Optional[Dict[str, Tuple[float, float]]] = None,
         estados_inalcanzables: Optional[Set[str]] = None,
+        estados_alcanzables: Optional[Set[str]] = None,
     ) -> None:
         """Sincroniza el lienzo cuando el modelo cambia externamente (ej. tabla, deshacer o visor Kn)."""
         # 1. Eliminar nodos que ya no están en Q
@@ -737,11 +741,16 @@ class LienzoGrafo(QGraphicsView):
         # 2. Agregar nodos nuevos preservando o restaurando posiciones
         for i, nombre in enumerate(estados):
             es_inacc = bool(estados_inalcanzables and nombre in estados_inalcanzables)
+            es_acc = bool(estados_alcanzables and nombre in estados_alcanzables)
+            if estados_inalcanzables is not None and not es_inacc and estados_alcanzables is None:
+                es_acc = True
+
             if nombre in self.nodos:
                 nodo = self.nodos[nombre]
                 nodo.establecer_es_inicial(nombre == estado_inicial)
                 nodo.establecer_es_aceptacion(nombre in estados_aceptacion)
                 nodo.establecer_inalcanzable(es_inacc)
+                nodo.establecer_alcanzable(es_acc)
                 nodo.establecer_permitir_movimiento(not self.modo_estatico)
                 if posiciones_restauradas and nombre in posiciones_restauradas:
                     px, py = posiciones_restauradas[nombre]
@@ -762,6 +771,7 @@ class LienzoGrafo(QGraphicsView):
                     es_inicial=(nombre == estado_inicial),
                     es_aceptacion=(nombre in estados_aceptacion),
                     es_inalcanzable=es_inacc,
+                    es_alcanzable=es_acc,
                 )
 
         # 3. Reconstruir aristas

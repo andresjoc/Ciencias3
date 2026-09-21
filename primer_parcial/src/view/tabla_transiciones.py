@@ -100,11 +100,11 @@ class TablaTransiciones(QGroupBox):
 
         self.boton_convertir_dfa = QPushButton("⚡ Convertir AFN a AFD")
         self.boton_convertir_dfa.setStyleSheet(
-            "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #6d28d9; }"
+            "QPushButton { background-color: #d97706; border: 1.5px solid #b45309; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #b45309; }"
         )
         self.boton_convertir_dfa.setToolTip(
-            "Sección Matriz: Convertir este AFN a AFD determinista mostrando la tabla de proceso de subconjuntos."
+            "Sección Matriz: Convertir este AFN a AFD determinista mostrando la tabla de proceso paso a paso."
         )
         self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
         self.boton_convertir_dfa.setVisible(False)
@@ -112,8 +112,8 @@ class TablaTransiciones(QGroupBox):
 
         self.boton_ver_paso_a_paso = QPushButton("📐 Ver Paso a Paso")
         self.boton_ver_paso_a_paso.setStyleSheet(
-            "QPushButton { background-color: #0284c7; border: 1.5px solid #0369a1; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
-            "QPushButton:hover { background-color: #0369a1; }"
+            "QPushButton { background-color: #059669; border: 1.5px solid #047857; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
+            "QPushButton:hover { background-color: #047857; }"
         )
         self.boton_ver_paso_a_paso.setToolTip(
             "Sección Matriz: Consultar el proceso formal de conversión paso a paso (Tablas 1 a 4 y grafo)."

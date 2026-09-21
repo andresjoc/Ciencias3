@@ -96,12 +96,20 @@ class Alfabeto:
         Raises:
             ErrorAlfabeto: Si algún carácter de la cadena no pertenece a Sigma.
         """
+        invalidos: List[str] = []
         for caracter in cadena:
-            if caracter not in self._conjunto_simbolos:
-                raise ErrorAlfabeto(
-                    f"Símbolo no válido '{caracter}' en la cadena de entrada. "
-                    f"Los símbolos permitidos son: {sorted(self._conjunto_simbolos)}"
-                )
+            if caracter not in self._conjunto_simbolos and caracter not in invalidos:
+                invalidos.append(caracter)
+
+        if invalidos:
+            if len(invalidos) == 1:
+                det = f"Símbolo no válido '{invalidos[0]}'"
+            else:
+                det = f"Símbolos no válidos [{', '.join(repr(c) for c in invalidos)}]"
+            raise ErrorAlfabeto(
+                f"{det} en la cadena de entrada. "
+                f"Los símbolos permitidos son: {sorted(self._conjunto_simbolos)}"
+            )
 
     def a_lista(self) -> List[str]:
         """Retorna una copia de los símbolos como lista."""

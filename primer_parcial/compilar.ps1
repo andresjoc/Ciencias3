@@ -1,7 +1,7 @@
 # Script PowerShell para compilar la aplicación a binario ejecutable (.exe)
-Write-Host "======================================================================" -ForegroundColor Cyan
-Write-Host " Compilando SimulaAutomata.exe con PyInstaller" -ForegroundColor Cyan
-Write-Host "======================================================================" -ForegroundColor Cyan
+Write-Host "======================================================================" -ForegroundColor Green
+Write-Host " Compilando SimulaAutomata.exe con PyInstaller" -ForegroundColor Green
+Write-Host "======================================================================" -ForegroundColor Green
 
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name SimulaAutomata --paths . src/main.py
 

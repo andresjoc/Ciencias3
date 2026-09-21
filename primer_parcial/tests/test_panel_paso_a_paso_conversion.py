@@ -211,3 +211,58 @@ def test_aviso_sin_estado_final_en_conversion_afd(qapp):
     # El convertidor por subconjuntos debe lanzar ErrorAutomata explicativo
     with pytest.raises(ErrorAutomata, match="no tiene ningún estado final"):
         ConvertidorSubconjuntos.convertir(nfa)
+
+
+def test_verificar_cadena_reporta_todos_los_simbolos_invalidos():
+    """Verifica que si la cadena contiene múltiples símbolos inválidos, el error señala a todos."""
+    from src.model.alfabeto import Alfabeto, ErrorAlfabeto
+    alf = Alfabeto(["0", "1"])
+
+    with pytest.raises(ErrorAlfabeto) as exc_info:
+        alf.verificar_cadena("0a1b2c")
+
+    msg = str(exc_info.value)
+    assert "Símbolos no válidos" in msg
+    assert "'a'" in msg
+    assert "'b'" in msg
+    assert "'2'" in msg
+    assert "'c'" in msg
+
+
+def test_estados_alcanzables_se_marcan_verdes_en_grafo_tabla3(qapp):
+    """Verifica que en el grafo de la Tabla 3, los estados alcanzables se marquen como es_alcanzable (verde) y los inalcanzables en rojo."""
+    nfa = AutomataNFA(alfabeto=["0", "1"], estados=["q0", "q1", "q2", "q3"], estado_inicial="q0")
+    nfa.agregar_transicion("q0", "0", "q0")
+    nfa.agregar_transicion("q0", "0", "q1")
+    nfa.agregar_transicion("q1", "1", "q2")
+    nfa.agregar_estado_aceptacion("q1")
+
+    res = ConvertidorSubconjuntos.convertir(nfa)
+    dialogo = DialogoConversionDFA(nfa)
+
+    lienzo = dialogo.lienzo_tabla3
+    for alc in res.accesibilidad.estados_alcanzables:
+        assert alc in lienzo.nodos
+        nodo = lienzo.nodos[alc]
+        assert nodo.es_alcanzable is True
+        assert nodo.es_inalcanzable is False
+
+    for inacc in res.accesibilidad.estados_inalcanzables:
+        assert inacc in lienzo.nodos
+        nodo = lienzo.nodos[inacc]
+        assert nodo.es_inalcanzable is True
+        assert nodo.es_alcanzable is False
+
+
+def test_pestana_pasos_5_y_6_emoji_sin_azul(qapp):
+    """Verifica que la pestaña de pasos 5 y 6 use el icono ⚡ y no contenga 🎯 (que tiene partes azules)."""
+    nfa = AutomataNFA(alfabeto=["0", "1"], estados=["q0", "q1"], estado_inicial="q0")
+    nfa.agregar_transicion("q0", "0", "q0")
+    nfa.agregar_transicion("q0", "0", "q1")
+    nfa.agregar_estado_aceptacion("q1")
+
+    dialogo = DialogoConversionDFA(nfa)
+    texto_p3 = dialogo.pestanas.tabText(2)
+    assert "⚡" in texto_p3
+    assert "🎯" not in texto_p3
+
