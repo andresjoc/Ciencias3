@@ -454,20 +454,41 @@ class ControladorAutomata:
     # Métodos de Simulación y Traza Paso a Paso
     # ==========================================================================
 
+    def _mostrar_alerta_advertencia(self, titulo: str, mensaje: str) -> None:
+        """Muestra un mensaje de advertencia visible en la barra de estado y mediante QMessageBox."""
+        if hasattr(self.vista, "mostrar_mensaje_estado"):
+            self.vista.mostrar_mensaje_estado(f"⚠ {titulo}: {mensaje.splitlines()[0]}")
+        import os
+        if not os.environ.get("PYTEST_CURRENT_TEST"):
+            QMessageBox.warning(self.vista, titulo, mensaje)
+
     def al_solicitar_evaluacion(self, cadena: str) -> bool:
         """Inicia la simulación para la cadena u especificada."""
         if not self.modelo.estados:
+            mensaje = "El autómata no tiene estados definidos en Q."
             if hasattr(self.vista, "panel_simulacion"):
-                self.vista.panel_simulacion.mostrar_error_evaluacion(
-                    "El autómata no tiene estados definidos en Q."
-                )
+                self.vista.panel_simulacion.mostrar_error_evaluacion(mensaje)
+            self._mostrar_alerta_advertencia("Sin Estados", mensaje)
             return False
 
         if self.modelo.estado_inicial is None:
+            mensaje = "El autómata no tiene un estado inicial (q₀) definido."
             if hasattr(self.vista, "panel_simulacion"):
-                self.vista.panel_simulacion.mostrar_error_evaluacion(
-                    "El autómata no tiene un estado inicial (q₀) definido."
-                )
+                self.vista.panel_simulacion.mostrar_error_evaluacion(mensaje)
+            self._mostrar_alerta_advertencia("Sin Estado Inicial", mensaje)
+            return False
+
+        if not self.modelo.estados_aceptacion:
+            mensaje_simulacion = "No se puede leer la cadena: el autómata no tiene ningún estado final (de aceptación) definido."
+            mensaje_alerta = (
+                "No se puede leer la cadena porque el autómata no tiene ningún estado final (de aceptación) definido.\n\n"
+                "Para definir un estado final:\n"
+                "• Haga clic derecho sobre un estado en el lienzo y seleccione «Estado de Aceptación (F)» (se dibujará con doble círculo), o\n"
+                "• Marque la casilla «Aceptación (F)» al agregar estados en la matriz de transiciones."
+            )
+            if hasattr(self.vista, "panel_simulacion"):
+                self.vista.panel_simulacion.mostrar_error_evaluacion(mensaje_simulacion)
+            self._mostrar_alerta_advertencia("Sin Estado Final", mensaje_alerta)
             return False
 
         try:
@@ -626,17 +647,35 @@ class ControladorAutomata:
 
     def al_solicitar_conversion_a_dfa(self) -> None:
         """Abre el diálogo interactivo para convertir de AFN a AFD con tabla de proceso."""
+        if not self.modelo.estados_aceptacion:
+            mensaje_alerta = (
+                "No se puede convertir a AFD porque el autómata no tiene ningún estado final (de aceptación) definido.\n\n"
+                "La conversión formal por subconjuntos requiere el conjunto de estados de aceptación F para determinar los estados finales del AFD (Paso 4).\n\n"
+                "Para definir un estado final:\n"
+                "• Haga clic derecho sobre un estado en el lienzo y seleccione «Estado de Aceptación (F)» (se dibujará con doble círculo), o\n"
+                "• Active la casilla «Aceptación (F)» en la matriz de transiciones."
+            )
+            self._mostrar_alerta_advertencia("Sin Estado Final", mensaje_alerta)
+            return
+
+        if self.modelo.estado_inicial is None:
+            mensaje_alerta = "No se puede convertir a AFD: el autómata no tiene un estado inicial (q₀) definido."
+            self._mostrar_alerta_advertencia("Sin Estado Inicial", mensaje_alerta)
+            return
+
         if not self.modelo.es_no_deterministico():
             self.vista.mostrar_mensaje_estado(
                 "El autómata actual ya es determinista (AFD). No requiere conversión por subconjuntos."
             )
-            QMessageBox.information(
-                self.vista,
-                "Autómata ya es Determinista",
-                "El autómata actual ya es Determinista (AFD).\n\n"
-                "Cada estado tiene a lo sumo una transición definida por símbolo. "
-                "La conversión de subconjuntos de Rabin-Scott aplica a autómatas no deterministas (AFN) con transiciones múltiples."
-            )
+            import os
+            if not os.environ.get("PYTEST_CURRENT_TEST"):
+                QMessageBox.information(
+                    self.vista,
+                    "Autómata ya es Determinista",
+                    "El autómata actual ya es Determinista (AFD).\n\n"
+                    "Cada estado tiene a lo sumo una transición definida por símbolo. "
+                    "La conversión de subconjuntos de Rabin-Scott aplica a autómatas no deterministas (AFN) con transiciones múltiples."
+                )
             return
 
         # Si el modelo aún no es instancia de AutomataNFA formal pero tiene no determinismo

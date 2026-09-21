@@ -55,41 +55,52 @@ class TablaTransiciones(QGroupBox):
         layout_principal = QVBoxLayout()
         layout_principal.setSpacing(10)
 
-        # Fila para agregar nuevos estados
-        layout_gestion_estados = QHBoxLayout()
-        layout_gestion_estados.setSpacing(8)
+        # Controles de gestión de estados y acciones de conversión (2 filas para pantallas de portátil)
+        layout_gestion_estados = QVBoxLayout()
+        layout_gestion_estados.setSpacing(6)
+
+        # Fila 1: Entrada de nombre, checkboxes y botones de agregar/eliminar
+        layout_fila_creacion = QHBoxLayout()
+        layout_fila_creacion.setSpacing(6)
 
         self.campo_nombre_estado = QLineEdit()
-        self.campo_nombre_estado.setPlaceholderText("Sección Matriz δ: Nombre de estado (ej. q0, q1)")
+        self.campo_nombre_estado.setPlaceholderText("Estado (ej. q0)")
         self.campo_nombre_estado.setToolTip(
             "Sección Matriz de Transiciones: Ingrese el identificador alfanumérico del nuevo estado formal (ej. q0)."
         )
         self.campo_nombre_estado.setValidator(QRegularExpressionValidator(QRegularExpression(r"[a-zA-Z0-9]*"), self))
         self.campo_nombre_estado.returnPressed.connect(self._al_agregar_estado)
-        layout_gestion_estados.addWidget(self.campo_nombre_estado)
+        layout_fila_creacion.addWidget(self.campo_nombre_estado)
 
         self.check_inicial = QCheckBox("Inicial (q₀)")
         self.check_inicial.setToolTip("Marcar si este nuevo estado será el estado inicial formal q₀ del autómata.")
-        layout_gestion_estados.addWidget(self.check_inicial)
+        layout_fila_creacion.addWidget(self.check_inicial)
 
         self.check_aceptacion = QCheckBox("Aceptación (F)")
         self.check_aceptacion.setToolTip("Marcar si este estado formará parte del conjunto de estados de aceptación F.")
-        layout_gestion_estados.addWidget(self.check_aceptacion)
+        layout_fila_creacion.addWidget(self.check_aceptacion)
 
-        self.boton_agregar_estado = QPushButton("Agregar Estado")
+        self.boton_agregar_estado = QPushButton("➕ Agregar")
         self.boton_agregar_estado.setToolTip("Registrar el nuevo estado formal en el autómata y la matriz.")
+        self.boton_agregar_estado.setStyleSheet("font-weight: 600; padding: 4px 8px; font-size: 11px;")
         self.boton_agregar_estado.clicked.connect(self._al_agregar_estado)
-        layout_gestion_estados.addWidget(self.boton_agregar_estado)
+        layout_fila_creacion.addWidget(self.boton_agregar_estado)
 
-        self.boton_eliminar_estado = QPushButton("Eliminar Estado")
-        self.boton_eliminar_estado.setStyleSheet("color: #b91c1c;")
+        self.boton_eliminar_estado = QPushButton("🗑️ Eliminar")
+        self.boton_eliminar_estado.setStyleSheet("color: #b91c1c; font-weight: 600; padding: 4px 8px; font-size: 11px;")
         self.boton_eliminar_estado.setToolTip("Eliminar de la matriz y del autómata el estado seleccionado.")
         self.boton_eliminar_estado.clicked.connect(self._al_eliminar_estado)
-        layout_gestion_estados.addWidget(self.boton_eliminar_estado)
+        layout_fila_creacion.addWidget(self.boton_eliminar_estado)
+
+        layout_gestion_estados.addLayout(layout_fila_creacion)
+
+        # Fila 2: Conversión a AFD y Ver Paso a Paso
+        layout_fila_conversion = QHBoxLayout()
+        layout_fila_conversion.setSpacing(6)
 
         self.boton_convertir_dfa = QPushButton("⚡ Convertir AFN a AFD")
         self.boton_convertir_dfa.setStyleSheet(
-            "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; font-weight: bold; }"
+            "QPushButton { background-color: #7c3aed; border: 1.5px solid #6d28d9; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
             "QPushButton:hover { background-color: #6d28d9; }"
         )
         self.boton_convertir_dfa.setToolTip(
@@ -97,11 +108,11 @@ class TablaTransiciones(QGroupBox):
         )
         self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
         self.boton_convertir_dfa.setVisible(False)
-        layout_gestion_estados.addWidget(self.boton_convertir_dfa)
+        layout_fila_conversion.addWidget(self.boton_convertir_dfa)
 
         self.boton_ver_paso_a_paso = QPushButton("📐 Ver Paso a Paso")
         self.boton_ver_paso_a_paso.setStyleSheet(
-            "QPushButton { background-color: #0284c7; border: 1.5px solid #0369a1; color: #ffffff; font-weight: bold; }"
+            "QPushButton { background-color: #0284c7; border: 1.5px solid #0369a1; color: #ffffff; font-weight: bold; padding: 4px 10px; font-size: 11px; border-radius: 6px; }"
             "QPushButton:hover { background-color: #0369a1; }"
         )
         self.boton_ver_paso_a_paso.setToolTip(
@@ -109,7 +120,10 @@ class TablaTransiciones(QGroupBox):
         )
         self.boton_ver_paso_a_paso.clicked.connect(self.ver_paso_a_paso_solicitado.emit)
         self.boton_ver_paso_a_paso.setVisible(False)
-        layout_gestion_estados.addWidget(self.boton_ver_paso_a_paso)
+        layout_fila_conversion.addWidget(self.boton_ver_paso_a_paso)
+
+        layout_fila_conversion.addStretch(1)
+        layout_gestion_estados.addLayout(layout_fila_conversion)
 
         layout_principal.addLayout(layout_gestion_estados)
 

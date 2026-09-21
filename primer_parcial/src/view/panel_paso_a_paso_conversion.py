@@ -30,7 +30,7 @@ class PanelPasoAPasoConversion(QWidget):
     1. Identificar no determinismo y construir Tabla 1.
     2. Expansión de estados compuestos (unión de transiciones) y Tabla 2.
     3. Notación formal Kn.
-    4. Aplicación de la Regla de Oro para estados finales y Tabla 3.
+    4. Identificación de estados finales y Tabla 3.
     5. Grafo del AFD a partir de Tabla 3 (estático, sin zoom/movimiento, inalcanzables en rojo).
     6. Análisis de accesibilidad (BFS desde K₀) y Tabla 4 Final Simplificada.
     """
@@ -46,34 +46,42 @@ class PanelPasoAPasoConversion(QWidget):
         layout_principal.setContentsMargins(0, 0, 0, 0)
         layout_principal.setSpacing(0)
 
-        # Área de desplazamiento única vertical
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
-        self.scroll_area.setStyleSheet(
-            "QScrollArea { border: none; background-color: #f8fafc; }"
-        )
+        # Contenedor con scroll vertical único y continuo
+        self.area_scroll = QScrollArea(self)
+        self.area_scroll.setWidgetResizable(True)
+        self.area_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.area_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.area_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
 
-        self.contenedor_pasos = QWidget()
-        self.contenedor_pasos.setStyleSheet("background-color: #f8fafc;")
-        self.layout_contenido = QVBoxLayout(self.contenedor_pasos)
+        self.widget_contenido = QWidget()
+        self.layout_contenido = QVBoxLayout(self.widget_contenido)
         self.layout_contenido.setContentsMargins(16, 16, 16, 16)
-        self.layout_contenido.setSpacing(18)
+        self.layout_contenido.setSpacing(14)
 
-        self.scroll_area.setWidget(self.contenedor_pasos)
-        layout_principal.addWidget(self.scroll_area)
+        self.area_scroll.setWidget(self.widget_contenido)
+        layout_principal.addWidget(self.area_scroll)
 
-        # Mostrar estado vacío inicial
-        self.limpiar()
+        self._mostrar_estado_inicial_vacio()
+
+    def _limpiar_layout_contenido(self) -> None:
+        while self.layout_contenido.count():
+            item = self.layout_contenido.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
 
     def limpiar(self) -> None:
         """Restablece el contenido a un estado informativo vacío."""
         self.resultado = None
         self.lienzo_tabla3 = None
-        self._limpiar_layout(self.layout_contenido)
+        self._mostrar_estado_inicial_vacio()
+
+    def _mostrar_estado_inicial_vacio(self) -> None:
+        """Muestra un banner informativo cuando aún no se ha ejecutado ninguna conversión."""
+        self._limpiar_layout_contenido()
 
         banner_vacio = QFrame()
         banner_vacio.setStyleSheet(
-            "QFrame { background-color: #ffffff; border: 1.5px dashed #cbd5e1; border-radius: 8px; padding: 24px; }"
+            "QFrame { background-color: #ffffff; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 40px 20px; }"
         )
         lay_vacio = QVBoxLayout(banner_vacio)
         lay_vacio.setSpacing(10)
@@ -95,7 +103,7 @@ class PanelPasoAPasoConversion(QWidget):
             "aquí podrá consultar en una sola vista continua todos los pasos formales:\n"
             "• Tabla 1 (AFN Original)\n"
             "• Tabla 2 (Expansión de Compuestos)\n"
-            "• Tabla 3 (Notación Kn y Regla de Oro)\n"
+            "• Tabla 3 (Notación Kn y Estados Finales)\n"
             "• Grafo de Tabla 3 (Estados Inalcanzables en Rojo)\n"
             "• Tabla 4 (AFD Final Simplificado y Poda de Inaccesibles)"
         )
@@ -262,7 +270,7 @@ class PanelPasoAPasoConversion(QWidget):
         self.layout_contenido.addWidget(card)
 
     def _construir_paso_4(self, res: ResultadoConversionMetodoProfe) -> None:
-        card = self._crear_tarjeta_seccion("Paso 4: Regla de Oro para estados finales y Tabla 3 Formalizada")
+        card = self._crear_tarjeta_seccion("Paso 4: Identificación de estados finales y Tabla 3 Formalizada")
         lay = card.layout()
 
         banner_oro = QFrame()
@@ -271,7 +279,7 @@ class PanelPasoAPasoConversion(QWidget):
         )
         lay_oro = QVBoxLayout(banner_oro)
         lay_oro.setSpacing(4)
-        lbl_oro_tit = QLabel("⭐ Regla de Oro (Estados de Aceptación del AFD):")
+        lbl_oro_tit = QLabel("⭐ Criterio de Aceptación (Estados Finales del AFD):")
         lbl_oro_tit.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
         lbl_oro_tit.setStyleSheet("color: #854d0e;")
         lay_oro.addWidget(lbl_oro_tit)
@@ -285,7 +293,7 @@ class PanelPasoAPasoConversion(QWidget):
         lay.addWidget(banner_oro)
 
         tabla3 = self._crear_tabla_estilizada(
-            columnas=["Estado Kn", "Composición"] + [f"Entrada {s}" for s in res.alfabeto] + ["¿Es Final? (Regla de Oro)"],
+            columnas=["Estado Kn", "Composición"] + [f"Entrada {s}" for s in res.alfabeto] + ["¿Es Final?"],
             num_filas=len(res.tabla3_formalizada),
         )
         for fila_idx, f in enumerate(res.tabla3_formalizada):

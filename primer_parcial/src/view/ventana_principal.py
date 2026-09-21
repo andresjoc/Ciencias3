@@ -47,13 +47,13 @@ class VentanaPrincipal(QMainWindow):
     def _inicializar_ui(self) -> None:
         """Inicializa la interfaz gráfica, título, dimensiones y componentes."""
         self.setWindowTitle("SimulaAutomata — Editor Visual y Simulador de Autómatas (DFA / NFA)")
-        self.resize(1280, 840)
-        self.setMinimumSize(960, 640)
+        self.resize(1240, 700)
+        self.setMinimumSize(900, 580)
 
         widget_central = QWidget(self)
         layout_central = QVBoxLayout(widget_central)
-        layout_central.setContentsMargins(14, 12, 14, 12)
-        layout_central.setSpacing(10)
+        layout_central.setContentsMargins(10, 8, 10, 8)
+        layout_central.setSpacing(6)
 
         # 1. Zona Superior: Panel del Alfabeto
         self.panel_alfabeto = PanelAlfabeto(self)

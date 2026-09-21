@@ -145,11 +145,9 @@ class LienzoGrafo(QGraphicsView):
         return self._factor_zoom
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Permite desplazar la vista verticalmente en modo estático, o hacer zoom en modo interactivo."""
+        """En modo estático no se scrollea el cuadro con el mouse (se ignora para no mover el cuadro y permitir scrollear la página contenedora), solo se desplaza arrastrando con la mano."""
         if self.modo_estatico:
-            delta = event.angleDelta().y()
-            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta)
-            event.accept()
+            event.ignore()
             return
         delta = event.angleDelta().y()
         if delta > 0:

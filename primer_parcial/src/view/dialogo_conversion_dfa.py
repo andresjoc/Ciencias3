@@ -36,7 +36,7 @@ class DialogoConversionDFA(QDialog):
     - Paso 1: Tabla 1 - Transiciones del AFN inicial
     - Paso 2: Tabla 2 - Expansión de estados compuestos
     - Paso 3: Tabla de renombrado a la notación Kn
-    - Paso 4: «Regla de Oro» y Tabla 3 formalizada con columna '¿Es Final?'
+    - Paso 4: Identificación de estados finales y Tabla 3 formalizada con columna '¿Es Final?'
     - Paso 5: Instrucciones de dibujo ("Pintar") y Grafo interactivo con estados inalcanzables en rojo
     - Paso 6: Rastreo de accesibilidad, poda de inalcanzables y Tabla 4 final simplificada.
     """
@@ -82,7 +82,7 @@ class DialogoConversionDFA(QDialog):
         layout_cab.addWidget(titulo)
 
         subtitulo = QLabel(
-            "Equivalencia por estados Kn (K₀, K₁, K₂...) y aplicación de la «Regla de Oro» para estados de aceptación."
+            "Equivalencia por estados Kn (K₀, K₁, K₂...) y determinación formal de estados de aceptación."
         )
         subtitulo.setStyleSheet("color: #475569; font-size: 11px;")
         layout_cab.addWidget(subtitulo)
@@ -109,8 +109,8 @@ class DialogoConversionDFA(QDialog):
         # Pestaña 1: Pasos 1 y 2 (Tablas 1 y 2)
         self.pestanas.addTab(self._crear_pestana_pasos_1_y_2(), "📋 Pasos 1 y 2: Tablas AFN y Expansión")
 
-        # Pestaña 2: Pasos 3 y 4 (Notación Kn y Regla de Oro)
-        self.pestanas.addTab(self._crear_pestana_pasos_3_y_4(), "🏷️ Pasos 3 y 4: Notación Kn y Regla de Oro")
+        # Pestaña 2: Pasos 3 y 4 (Notación Kn y Estados Finales)
+        self.pestanas.addTab(self._crear_pestana_pasos_3_y_4(), "🏷️ Pasos 3 y 4: Notación Kn y Estados Finales")
 
         # Pestaña 3: Pasos 5 y 6 (Poda de Inalcanzables y Tabla 4 Final)
         self.pestanas.addTab(self._crear_pestana_pasos_5_y_6(), "🎯 Pasos 5 y 6: Grafo y AFD Final Simplificado")
@@ -258,7 +258,7 @@ class DialogoConversionDFA(QDialog):
         return scroll
 
     def _crear_pestana_pasos_3_y_4(self) -> QWidget:
-        """Paso 3: Notación Kn y Paso 4: Regla de Oro para estados finales (Tabla 3)."""
+        """Paso 3: Notación Kn y Paso 4: Identificación de estados finales (Tabla 3)."""
         contenedor = QWidget()
         layout = QVBoxLayout(contenedor)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -276,43 +276,51 @@ class DialogoConversionDFA(QDialog):
         layout.addWidget(lbl_p3)
 
         txt_p3 = QLabel(
-            "Para simplificar la manipulación algebraica y gráfica, se asigna una etiqueta Kn a cada estado simple o compuesto:"
+            "Se toma la lista de conjuntos únicos descubiertos en la Tabla 2 y se les asigna una etiqueta formal Kn.\n"
+            "El estado inicial se etiqueta como K₀. Los estados simples conservan el índice si es posible (K₁={q₁}, K₂={q₂}...).\n"
+            "Los estados compuestos descubiertos se etiquetan correlativamente (K₄, K₅...)."
         )
         txt_p3.setStyleSheet("color: #475569; font-size: 11px;")
         layout.addWidget(txt_p3)
 
-        # Tabla de equivalencias Kn
         tabla_kn = self._crear_tabla_estilizada(
-            columnas=["Etiqueta Kn", "Conjunto equivalente"],
+            columnas=["Notación Formal", "Conjunto Equivalente {qi}", "Tipo de Estado"],
             num_filas=len(res.mapeo_kn),
         )
         for fila_idx, f in enumerate(res.mapeo_kn):
-            it_k = QTableWidgetItem(f.etiqueta)
-            it_k.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            it_k.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            tabla_kn.setItem(fila_idx, 0, it_k)
+            tipo = "Inicial (K₀)" if f.es_inicial else ("Compuesto" if len(f.subconjunto) > 1 else "Simple")
+            it0 = QTableWidgetItem(f.etiqueta)
+            it0.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            it0.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            if f.es_inicial:
+                it0.setForeground(QColor("#0284c7"))
+            tabla_kn.setItem(fila_idx, 0, it0)
 
-            it_c = QTableWidgetItem(f.subconjunto_formateado)
-            it_c.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            tabla_kn.setItem(fila_idx, 1, it_c)
+            it1 = QTableWidgetItem(f.subconjunto_formateado)
+            it1.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            tabla_kn.setItem(fila_idx, 1, it1)
+
+            it2 = QTableWidgetItem(tipo)
+            it2.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            tabla_kn.setItem(fila_idx, 2, it2)
+
         layout.addWidget(tabla_kn)
-
         layout.addSpacing(6)
 
         # --- SECCIÓN PASO 4 ---
-        lbl_p4 = QLabel("Paso 4: Aplicar la «Regla de Oro» para identificar estados finales en Kn")
+        lbl_p4 = QLabel("Paso 4: Identificar estados finales en Kn")
         lbl_p4.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
         lbl_p4.setStyleSheet("color: #1e293b;")
         layout.addWidget(lbl_p4)
 
-        # Marco destacado para la Regla de Oro
+        # Marco destacado para el Criterio de Aceptación
         marco_regla = QFrame()
         marco_regla.setStyleSheet(
             "QFrame { background-color: #fefce8; border: 1.5px solid #facc15; border-radius: 6px; padding: 8px; }"
         )
         layout_regla = QVBoxLayout(marco_regla)
         txt_regla = QLabel(
-            "⭐ Regla de Oro: Un estado Kn es un estado final (de aceptación) si y solo si contiene al menos uno "
+            "⭐ Criterio de Aceptación: Un estado Kn es un estado final (de aceptación) si y solo si contiene al menos uno "
             "de los estados finales del AFN original.\n"
             "Kn ∈ F_AFD ⟺ Kn ∩ F_AFN ≠ ∅"
         )
@@ -325,7 +333,7 @@ class DialogoConversionDFA(QDialog):
         layout_regla.addWidget(txt_f_afn)
         layout.addWidget(marco_regla)
 
-        # Listado de justificaciones de la Regla de Oro
+        # Listado de justificaciones de estados finales
         for f in res.mapeo_kn:
             lbl_item = QLabel(f"• {f.etiqueta} = {f.subconjunto_formateado}: {f.motivo_final} ➔ {f.explicacion_regla_oro}")
             if f.es_final:
@@ -399,7 +407,7 @@ class DialogoConversionDFA(QDialog):
 
         txt_p5 = QLabel(
             "1. Se traza el estado inicial con flecha entrante → (K₀).\n"
-            "2. Se representan los estados finales de aceptación con doble círculo concéntrico (Regla de Oro).\n"
+            "2. Se representan los estados finales de aceptación con doble círculo concéntrico.\n"
             "3. Se grafican todas las transiciones rotuladas con las entradas {a, b...} formalizadas en la Tabla 3.\n"
             "• Nota pedagógica: En el visor inferior se muestra el grafo íntegro de la Tabla 3. Los estados que\n"
             "  resultan inalcanzables desde K₀ se colorean automáticamente en ROJO para visualizar la poda del Paso 6."

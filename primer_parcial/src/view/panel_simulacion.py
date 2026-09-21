@@ -58,7 +58,8 @@ class PanelSimulacion(QGroupBox):
         self.campo_cadena.returnPressed.connect(self._al_iniciar)
         layout_entrada.addWidget(self.campo_cadena)
 
-        self.boton_iniciar = QPushButton("Iniciar Simulación")
+        self.boton_iniciar = QPushButton("Iniciar")
+        self.boton_iniciar.setStyleSheet("font-weight: 600; padding: 5px 10px; font-size: 11px;")
         self.boton_iniciar.setToolTip("Cargar la palabra u en la cinta y preparar la traza de ejecución.")
         self.boton_iniciar.clicked.connect(self._al_iniciar)
         layout_entrada.addWidget(self.boton_iniciar)
@@ -67,26 +68,33 @@ class PanelSimulacion(QGroupBox):
 
         # Fila 2: Botones de control paso a paso y ejecución completa
         layout_controles = QHBoxLayout()
+        layout_controles.setSpacing(6)
 
-        self.boton_anterior = QPushButton("◀ Paso Anterior")
+        estilo_controles = "QPushButton { padding: 5px 8px; font-size: 11px; font-weight: 600; }"
+
+        self.boton_anterior = QPushButton("◀ Anterior")
+        self.boton_anterior.setStyleSheet(estilo_controles)
         self.boton_anterior.setToolTip("Retroceder un paso en la lectura de la cinta y volver al estado previo.")
         self.boton_anterior.clicked.connect(self.retroceder_paso_solicitado.emit)
         self.boton_anterior.setEnabled(False)
         layout_controles.addWidget(self.boton_anterior)
 
-        self.boton_siguiente = QPushButton("Paso Siguiente ▶")
+        self.boton_siguiente = QPushButton("Siguiente ▶")
+        self.boton_siguiente.setStyleSheet(estilo_controles)
         self.boton_siguiente.setToolTip("Avanzar un paso: leer el símbolo actual y transicionar al siguiente estado.")
         self.boton_siguiente.clicked.connect(self.avanzar_paso_solicitado.emit)
         self.boton_siguiente.setEnabled(False)
         layout_controles.addWidget(self.boton_siguiente)
 
         self.boton_ejecutar_todo = QPushButton("Ejecutar Todo ⏭")
+        self.boton_ejecutar_todo.setStyleSheet(estilo_controles)
         self.boton_ejecutar_todo.setToolTip("Recorrer toda la cinta automáticamente paso a paso con animación temporizada.")
         self.boton_ejecutar_todo.clicked.connect(self.ejecutar_todo_solicitado.emit)
         self.boton_ejecutar_todo.setEnabled(False)
         layout_controles.addWidget(self.boton_ejecutar_todo)
 
         self.boton_reiniciar = QPushButton("Reiniciar ↺")
+        self.boton_reiniciar.setStyleSheet(estilo_controles)
         self.boton_reiniciar.setToolTip("Regresar la cinta y el cabezal lector al estado inicial q₀.")
         self.boton_reiniciar.clicked.connect(self.reiniciar_simulacion_solicitado.emit)
         self.boton_reiniciar.setEnabled(False)

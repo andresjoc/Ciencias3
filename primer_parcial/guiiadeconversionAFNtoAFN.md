@@ -64,9 +64,9 @@ Para simplificar la manipulación algebraica y gráfica, se asigna una etiqueta 
 
 ---
 
-## Paso 4: Aplicar la «Regla de Oro» para identificar estados finales en $K_n$
+## Paso 4: Identificar estados finales en $K_n$
 
-> **Regla de Oro:**  
+> **Criterio de Aceptación:**  
 > Un estado $K_n$ es un **estado final (de aceptación)** si y solo si contiene **al menos uno** de los estados finales del AFN original.  
 > $$K_n \in F_{AFD} \iff K_n \cap F_{AFN} \neq \emptyset$$
 

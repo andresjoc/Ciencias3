@@ -108,6 +108,7 @@ class PanelAlfabeto(QGroupBox):
         layout_entrada.addWidget(self.campo_simbolos)
 
         self.boton_establecer = QPushButton("Establecer Alfabeto")
+        self.boton_establecer.setStyleSheet("font-weight: 600; padding: 5px 12px; font-size: 11px;")
         self.boton_establecer.setToolTip("Guardar y aplicar el conjunto del alfabeto formal Σ a toda la aplicación.")
         self.boton_establecer.clicked.connect(self._al_solicitar_definicion)
         layout_entrada.addWidget(self.boton_establecer)

@@ -89,7 +89,7 @@ def test_metodo_profe_caso_guia_exacto():
     assert dict_kn["K3"] == {"q3"}
     assert dict_kn["K4"] == {"q1", "q2"}
 
-    # 4. Paso 4: Regla de Oro
+    # 4. Paso 4: Criterio de aceptación para estados finales
     # Como F = {q1}, K1 es final y K4 (que contiene q1) también es final
     fila_k0 = next(f for f in resultado.mapeo_kn if f.etiqueta == "K0")
     assert fila_k0.es_final is False

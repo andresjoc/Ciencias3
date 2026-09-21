@@ -175,35 +175,53 @@ dist\SimulaAutomata.exe
 
 ---
 
-## Guía de Uso del Editor de Grafos
+## Guía de Uso del Editor de Grafos y Simulador
 
 ### 1. Barra de Herramientas del Grafo
-- 🖱️ **Mover / Cursor (Esc):** Permite hacer clic y arrastrar cualquier estado por el lienzo.
-- ➕⭕ **Crear Estado:** Haga clic en cualquier lugar del lienzo para plantar un estado ($q_0, q_1, \dots$). El primer estado creado se define automáticamente como estado inicial.
-- ➔ **Conectar Flecha:** Haga clic sobre el nodo origen y arrastre hacia el nodo destino. Al soltar, se abrirá un cuadro para ingresar el símbolo de la transición (ej. `0` o `a, b`). Si arrastra de un estado hacia sí mismo, se generará un bucle curvo (*self-loop*).
+- 🖱️ **Modo Cursor (Esc):** Permite hacer clic y arrastrar cualquier estado por el lienzo, seleccionar elementos o editar flechas.
+- ✋ **Modo Desplazar:** Arrastre panorámico libre del lienzo en cualquier dirección con el botón izquierdo presionado.
+- ➕ **Crear Estado:** Haga clic en cualquier lugar del lienzo para plantar un nuevo nodo formal ($q_0, q_1, \dots$). El primer estado creado se define automáticamente como estado inicial.
+- ➔ **Conectar Flecha:** Conexión interactiva a dos clics: haga clic en el nodo origen y luego en el nodo destino (o sobre el mismo para bucles *self-loop*). Se abrirá un cuadro para seleccionar los caracteres del alfabeto.
 - 🗑️ **Borrar (Supr / Backspace):** Haga clic en cualquier estado o flecha para eliminarlo inmediatamente.
+- ↶ **Deshacer (Ctrl+Z) / ↷ Rehacer (Ctrl+Y / Ctrl+Shift+Z):** Historial completo para revertir o restaurar cualquier cambio (creaciones, eliminaciones, ediciones, auto-distribución o conversiones).
+- 🔍+ / 🔍- / ⟲ 100%: Controles de zoom dedicados (también disponibles mediante la rueda del ratón en el editor).
 - 🔄 **Auto-distribuir:** Reorganiza automáticamente todos los estados en una disposición circular armónica.
-- 🧹 **Limpiar Grafo:** Borra todos los nodos y flechas del lienzo para empezar de cero.
+- 🧹 **Limpiar Grafo:** Borra todos los nodos, flechas e historial del lienzo para empezar de cero.
+- ⚡ **Convertir AFN a AFD:** Se activa al detectar transiciones no deterministas para abrir el procedimiento formal docente.
+- 📖 **¿Cómo usar el programa?:** Abre la guía interactiva completa en la pestaña derecha.
 
 ### 2. Clic Derecho sobre los Estados
-- **Marcar como Inicial ($q_0$):** Agrega la flecha formal $\to q$ en color azul.
+- **Marcar como Inicial ($q_0$):** Agrega la flecha formal entrante azul $\to q$.
 - **Estado de Aceptación ($F$):** Agrega el doble círculo concéntrico característico.
-- **Renombrar Estado:** Permite cambiar el nombre del estado (ej. $q_0 \to s_0$).
+- **Renombrar Estado:** Permite cambiar el identificador del estado (ej. $q_0 \to s_0$).
 - **Eliminar Estado:** Remueve el estado y todas sus flechas asociadas.
 
 ### 3. Clic y Doble Clic en Flechas
-- **Doble clic en una flecha:** Permite editar los símbolos permitidos de la transición.
-- **Clic derecho en una flecha:** Acceso directo a edición o eliminación.
+- **Doble clic en una flecha:** Permite editar los símbolos permitidos de la transición mediante un menú interactivo.
+- **Clic derecho en una flecha:** Acceso directo a edición de caracteres o eliminación.
 
-### 4. Simulación Paso a Paso
-- En la pestaña derecha **"📼 Simulador de Cinta y Traza"**, escriba la cadena $u$ (ej. `0101`) y presione **"Iniciar Simulación"**.
-- A medida que avanza paso a paso:
-  - En la **Cinta** se resaltará en amarillo la celda activa y se moverá la flecha vertical ($\uparrow$).
-  - En el **Grafo** el nodo correspondiente se iluminará en amarillo suave en tiempo real.
-  - Al llegar a la celda $\equiv$, se indicará con insignia verde ($\checkmark$) si la palabra fue **Aceptada** o roja ($\times$) si fue **Rechazada**.
+### 4. Simulación Paso a Paso en Cinta
+- En la pestaña **"📼 Simulador de Cinta y Traza"**, escriba la cadena concreta $u \in \Sigma^*$ (ej. `0101`, `aab`) y presione **"Iniciar"**.
+  > **Nota Teórica:** La cinta recibe palabras reales de entrada, **no** operadores de expresiones regulares como `*` (Kleene) o `+`.
+- A medida que avanza con **"Siguiente ▶"**:
+  - En la **Cinta** se resalta en amarillo la celda leída y se desplaza el cabezal lector ($\uparrow$).
+  - En el **Grafo** el nodo activo correspondiente se ilumina en amarillo brillante en tiempo real.
+  - Al llegar a la celda $\equiv$, se indica con insignia verde ($\checkmark$) si la palabra fue **Aceptada** o roja ($\times$) si fue **Rechazada**.
+- En **AFN**, se visualizan ramas paralelas de computación, truncando con $\emptyset$ aquellas que alcanzan transiciones indefinidas.
+
+### 5. Conversión Formal de AFN a AFD (Método Docente de Subconjuntos)
+- Al hacer clic en **"⚡ Convertir AFN a AFD"**, se despliega el procedimiento en 6 pasos formales:
+  1. **Paso 1:** Tabla 1 (AFN base con transiciones múltiples).
+  2. **Paso 2:** Tabla 2 (Expansión de estados compuestos por unión $\delta(q_i, \sigma) \cup \delta(q_j, \sigma)$).
+  3. **Paso 3:** Mapeo y renombramiento a notación formal $K_n$ ($K_0, K_1, \dots$).
+  4. **Paso 4:** Criterio de aceptación para identificar estados finales y Tabla 3 Formalizada.
+  5. **Paso 5:** Grafo completo de la Tabla 3 en visor estático con estados inalcanzables en **rojo** y navegación exclusiva por arrastre de mano.
+  6. **Paso 6:** Análisis de accesibilidad (BFS desde $K_0$) y Tabla 4 Final Simplificada.
+- **Aplicar al Editor:** Transfiere el AFD resultante al editor con distribución circular.
+- **Pestaña Permanente:** Permite consultar el informe continuo en cualquier momento en la pestaña **"📐 Paso a Paso (AFN → AFD)"** ubicada contigua a la Matriz de Transiciones.
 
 ---
 
 ## Licencia y Créditos
 
-Proyecto desarrollado para la asignatura **Ciencias de la Computación 3 (Lenguajes Formales y Autómatas)**, Décimo Semestre.
+Proyecto desarrollado para la asignatura **Ciencias de la Computación 3 (Lenguajes Formales y Autómatas)**, Décimo Semestre, Universidad del Quindío.

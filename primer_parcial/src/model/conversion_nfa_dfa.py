@@ -4,7 +4,7 @@ Implementa con exactitud el procedimiento paso a paso documentado en 'guiiadecon
 - Paso 1: Construcción de la tabla de transiciones original del AFN (Tabla 1).
 - Paso 2: Generación y evaluación de nuevos estados compuestos por unión de transiciones (Tabla 2).
 - Paso 3: Renombramiento formal de estados a la notación K_n (K0, K1, K2...).
-- Paso 4: Aplicación de la «Regla de Oro» para identificar estados finales (Tabla 3).
+- Paso 4: Criterio de aceptación para identificar estados finales (Tabla 3).
 - Paso 5: Representación gráfica de transiciones con doble círculo en finales.
 - Paso 6: Identificación y poda de estados inalcanzables desde K0 (Tabla 4 final simplificada).
 """
@@ -65,7 +65,7 @@ class FilaMapeoKn:
     etiqueta: str               # "K0", "K1", "K4", etc.
     subconjunto: Set[str]       # {"q0"} o {"q1", "q2"}
     es_inicial: bool
-    es_final: bool              # ¿Es final por Regla de Oro?
+    es_final: bool              # ¿Es estado final/de aceptación?
     motivo_final: str           # ej. "Contiene a q1" o "No contiene estados finales"
     estados_finales_contenidos: Set[str]
     transiciones_kn: Dict[str, Optional[str]] = field(default_factory=dict)  # sim -> "K4" o None si vacío (∅)
@@ -149,6 +149,9 @@ class ConvertidorSubconjuntos:
 
         if not hasattr(nfa, "alfabeto") or not nfa.alfabeto.simbolos:
             raise ErrorAutomata("No se puede convertir: el alfabeto Sigma no tiene símbolos definidos.")
+
+        if not hasattr(nfa, "estados_aceptacion") or not nfa.estados_aceptacion:
+            raise ErrorAutomata("No se puede convertir a AFD: el autómata no tiene ningún estado final (de aceptación) definido.")
 
         simbolos: List[str] = list(nfa.alfabeto.simbolos)
         estados_nfa: List[str] = list(nfa.estados)
@@ -260,9 +263,9 @@ class ConvertidorSubconjuntos:
                     contador_k += 1
 
         # ----------------------------------------------------------------------
-        # PASO 4: Aplicar la «Regla de Oro» e identificar estados finales (Tabla 3)
+        # PASO 4: Identificar estados finales de aceptación (Tabla 3)
         # ----------------------------------------------------------------------
-        # Regla de Oro: Kn es final si y solo si contiene al menos uno de los estados finales de AFN:
+        # Criterio de aceptación: Kn es final si y solo si contiene al menos uno de los estados finales de AFN:
         # Kn ∈ F_AFD <=> Kn ∩ F_AFN ≠ ∅
         mapeo_kn_filas: List[FilaMapeoKn] = []
         tabla3_formalizada: List[FilaMapeoKn] = []

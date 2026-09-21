@@ -55,6 +55,8 @@ def test_lienzo_modo_estatico_bloquea_movimiento_y_zoom(qapp):
     )
     lienzo.wheelEvent(evento_rueda)
     assert lienzo.factor_zoom == zoom_inicial
+    # La rueda no debe ser aceptada por el lienzo (no scrollea el cuadro)
+    assert evento_rueda.isAccepted() is False
 
 
 def test_dialogo_conversion_paso_5_sin_botones_zoom_ni_auto(qapp):
@@ -169,3 +171,43 @@ def test_bloqueo_boton_conversion_al_dejar_de_ser_afn(qapp):
     assert vista.barra_herramientas_grafo.boton_convertir_dfa.isEnabled() is False
     assert vista.tabla_transiciones.boton_convertir_dfa.isHidden() is True
     assert vista.tabla_transiciones.boton_convertir_dfa.isEnabled() is False
+
+
+def test_aviso_sin_estado_final_en_evaluacion_cadena(qapp):
+    """Verifica que si no hay estado final, se avisa en pantalla y se rechaza la lectura de la cadena."""
+    modelo = AutomataNFA(alfabeto=["0", "1"], estados=["q0", "q1"], estado_inicial="q0")
+    modelo.agregar_transicion("q0", "0", "q1")
+    # Sin estados de aceptación
+    assert len(modelo.estados_aceptacion) == 0
+
+    vista = VentanaPrincipal()
+    controlador = ControladorAutomata(modelo=modelo, vista=vista)
+
+    # Intentar leer cadena sin estado final
+    exito = controlador.al_solicitar_evaluacion("0")
+    assert exito is False
+    assert "ERROR DE ENTRADA" in vista.panel_simulacion.insignia_estado.text()
+    assert "no tiene ningún estado final" in vista.panel_simulacion.etiqueta_detalle_paso.text()
+    assert "Sin Estado Final" in vista.barra_estado.currentMessage()
+
+
+def test_aviso_sin_estado_final_en_conversion_afd(qapp):
+    """Verifica que si no hay estado final, se avisa en pantalla y se bloquea la conversión a AFD."""
+    from src.model.automata import ErrorAutomata
+
+    nfa = AutomataNFA(alfabeto=["0", "1"], estados=["q0", "q1"], estado_inicial="q0")
+    nfa.agregar_transicion("q0", "0", "q0")
+    nfa.agregar_transicion("q0", "0", "q1")  # No determinista
+    # Sin estados de aceptación
+    assert len(nfa.estados_aceptacion) == 0
+
+    vista = VentanaPrincipal()
+    controlador = ControladorAutomata(modelo=nfa, vista=vista)
+
+    # Intentar convertir a AFD sin estado final
+    controlador.al_solicitar_conversion_a_dfa()
+    assert "Sin Estado Final" in vista.barra_estado.currentMessage()
+
+    # El convertidor por subconjuntos debe lanzar ErrorAutomata explicativo
+    with pytest.raises(ErrorAutomata, match="no tiene ningún estado final"):
+        ConvertidorSubconjuntos.convertir(nfa)

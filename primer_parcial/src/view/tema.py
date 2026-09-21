@@ -75,9 +75,9 @@ QPushButton {
     color: #1e293b;
     border: 1.5px solid #cbd5e1;
     border-radius: 6px;
-    padding: 7px 14px;
+    padding: 5px 10px;
     font-weight: 600;
-    font-size: 12px;
+    font-size: 11px;
 }
 
 QPushButton:hover {
@@ -108,6 +108,9 @@ QPushButton[clase="primario"] {
     background-color: #2563eb;
     color: #ffffff;
     border: 1.5px solid #1d4ed8;
+    padding: 5px 12px;
+    font-weight: 600;
+    font-size: 11px;
 }
 
 QPushButton[clase="primario"]:hover {
