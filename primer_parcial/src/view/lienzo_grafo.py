@@ -64,9 +64,15 @@ class LienzoGrafo(QGraphicsView):
     mensaje_solicitado = pyqtSignal(str)
     grafo_limpiado = pyqtSignal()
 
-    def __init__(self, parent: QWidget | None = None, solo_lectura: bool = False) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        solo_lectura: bool = False,
+        modo_estatico: bool = False,
+    ) -> None:
         super().__init__(parent)
         self.solo_lectura = solo_lectura
+        self.modo_estatico = modo_estatico
         self._escena = QGraphicsScene(self)
         self.setScene(self._escena)
         self._escena.setSceneRect(-2000, -2000, 4000, 4000)
@@ -75,7 +81,13 @@ class LienzoGrafo(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setRenderHint(QPainter.RenderHint.TextAntialiasing)
         self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.FullViewportUpdate)
-        self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
+        if self.modo_estatico:
+            self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+            self.viewport().setCursor(Qt.CursorShape.OpenHandCursor)
+            self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+            self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        else:
+            self.setDragMode(QGraphicsView.DragMode.RubberBandDrag)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
 
         # Diccionarios de referencia para sincronización rápida
@@ -101,6 +113,8 @@ class LienzoGrafo(QGraphicsView):
 
     def zoom_acercar(self) -> None:
         """Aumenta el nivel de zoom del lienzo gráfico."""
+        if self.modo_estatico:
+            return
         if self._factor_zoom < 3.5:
             factor = 1.2
             self.scale(factor, factor)
@@ -109,6 +123,8 @@ class LienzoGrafo(QGraphicsView):
 
     def zoom_alejar(self) -> None:
         """Disminuye el nivel de zoom del lienzo gráfico."""
+        if self.modo_estatico:
+            return
         if self._factor_zoom > 0.35:
             factor = 1.0 / 1.2
             self.scale(factor, factor)
@@ -117,6 +133,8 @@ class LienzoGrafo(QGraphicsView):
 
     def zoom_restablecer(self) -> None:
         """Restablece el nivel de zoom a la escala original (1:1 o 100%)."""
+        if self.modo_estatico:
+            return
         self.resetTransform()
         self._factor_zoom = 1.0
         self.mensaje_solicitado.emit("Zoom restablecido al 100%")
@@ -127,7 +145,12 @@ class LienzoGrafo(QGraphicsView):
         return self._factor_zoom
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Permite hacer zoom interactivo con la rueda del ratón."""
+        """Permite desplazar la vista verticalmente en modo estático, o hacer zoom en modo interactivo."""
+        if self.modo_estatico:
+            delta = event.angleDelta().y()
+            self.verticalScrollBar().setValue(self.verticalScrollBar().value() - delta)
+            event.accept()
+            return
         delta = event.angleDelta().y()
         if delta > 0:
             self.zoom_acercar()
@@ -447,6 +470,7 @@ class LienzoGrafo(QGraphicsView):
             nodo.establecer_es_inicial(es_inicial)
             nodo.establecer_es_aceptacion(es_aceptacion)
             nodo.establecer_inalcanzable(es_inalcanzable)
+            nodo.establecer_permitir_movimiento(not self.modo_estatico)
             return nodo
 
         nodo = ItemNodoEstado(
@@ -457,6 +481,7 @@ class LienzoGrafo(QGraphicsView):
             es_aceptacion=es_aceptacion,
             lienzo=self,
             es_inalcanzable=es_inalcanzable,
+            permitir_movimiento=not self.modo_estatico,
         )
         self._escena.addItem(nodo)
         self.nodos[nombre] = nodo
@@ -719,6 +744,7 @@ class LienzoGrafo(QGraphicsView):
                 nodo.establecer_es_inicial(nombre == estado_inicial)
                 nodo.establecer_es_aceptacion(nombre in estados_aceptacion)
                 nodo.establecer_inalcanzable(es_inacc)
+                nodo.establecer_permitir_movimiento(not self.modo_estatico)
                 if posiciones_restauradas and nombre in posiciones_restauradas:
                     px, py = posiciones_restauradas[nombre]
                     nodo.setPos(px, py)

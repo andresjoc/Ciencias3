@@ -209,19 +209,10 @@ class AutomataNFA(Automata):
     def es_no_deterministico(self) -> bool:
         """Determina si este autómata presenta características no deterministas.
 
-        Se considera no determinista si existe al menos una transición con múltiples
-        destinos (|δ(q, σ)| > 1) o si es un NFA con transiciones ramificadas o incompletas.
+        Un autómata es no determinista y requiere conversión de subconjuntos si posee
+        al menos una transición con múltiples destinos (|δ(q, σ)| > 1).
         """
-        if self.tiene_transiciones_multiples():
-            return True
-
-        if self._estados and self._alfabeto.simbolos:
-            for estado in self._estados:
-                for simbolo in self._alfabeto.simbolos:
-                    if not self.obtener_transiciones(estado, simbolo):
-                        return True
-
-        return False
+        return self.tiene_transiciones_multiples()
 
     def convertir_a_dfa(self, incluir_trampa: bool = False):
         """Convierte este NFA a un DFA equivalente mediante el método de subconjuntos de Rabin-Scott."""

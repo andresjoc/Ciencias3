@@ -20,6 +20,7 @@ from src.view.barra_herramientas_grafo import BarraHerramientasGrafo
 from src.view.lienzo_grafo import LienzoGrafo
 from src.view.panel_alfabeto import PanelAlfabeto
 from src.view.panel_guia_uso import PanelGuiaUso
+from src.view.panel_paso_a_paso_conversion import PanelPasoAPasoConversion
 from src.view.panel_simulacion import PanelSimulacion
 from src.view.tabla_transiciones import TablaTransiciones
 
@@ -118,7 +119,13 @@ class VentanaPrincipal(QMainWindow):
         self.tabla_transiciones = TablaTransiciones(self)
         self.pestanas_derecha.addTab(self.tabla_transiciones, "📋 Matriz de Transiciones")
 
-        # Pestaña 3: Guía Rápida de Uso e Instrucciones
+        # Pestaña 3: Proceso de Conversión Paso a Paso (AFN → AFD) - Al lado de la matriz
+        self.panel_paso_a_paso = PanelPasoAPasoConversion(self)
+        self.pestanas_derecha.addTab(self.panel_paso_a_paso, "📐 Paso a Paso (AFN → AFD)")
+        self.pestanas_derecha.setTabVisible(2, False)  # Oculta inicialmente hasta que haya conversión
+        self.tabla_transiciones.ver_paso_a_paso_solicitado.connect(self.activar_pestana_paso_a_paso)
+
+        # Pestaña 4: Guía Rápida de Uso e Instrucciones
         self.panel_guia_uso = PanelGuiaUso(self)
         self.pestanas_derecha.addTab(self.panel_guia_uso, "📖 Guía de Uso")
 
@@ -136,6 +143,29 @@ class VentanaPrincipal(QMainWindow):
         self.mostrar_mensaje_estado(
             "Listo. Puede dibujar estados y transiciones en el lienzo o ingresar el alfabeto."
         )
+
+    def mostrar_paso_a_paso_conversion(self, resultado) -> None:
+        """Muestra la pestaña y activa el botón de ver paso a paso con el resultado cargado."""
+        self.panel_paso_a_paso.cargar_resultado(resultado)
+        idx = self.pestanas_derecha.indexOf(self.panel_paso_a_paso)
+        if idx != -1:
+            self.pestanas_derecha.setTabVisible(idx, True)
+        self.tabla_transiciones.boton_ver_paso_a_paso.setVisible(True)
+
+    def ocultar_paso_a_paso_conversion(self) -> None:
+        """Oculta la pestaña y el botón de paso a paso (ej. al deshacer la conversión)."""
+        idx = self.pestanas_derecha.indexOf(self.panel_paso_a_paso)
+        if idx != -1:
+            self.pestanas_derecha.setTabVisible(idx, False)
+        self.tabla_transiciones.boton_ver_paso_a_paso.setVisible(False)
+        self.panel_paso_a_paso.limpiar()
+
+    def activar_pestana_paso_a_paso(self) -> None:
+        """Cambia el foco del panel derecho hacia la pestaña del paso a paso."""
+        idx = self.pestanas_derecha.indexOf(self.panel_paso_a_paso)
+        if idx != -1:
+            self.pestanas_derecha.setTabVisible(idx, True)
+            self.pestanas_derecha.setCurrentWidget(self.panel_paso_a_paso)
 
     def mostrar_mensaje_estado(self, mensaje: str, duracion_ms: int = 0) -> None:
         """Muestra un mensaje en la barra de estado de la ventana."""

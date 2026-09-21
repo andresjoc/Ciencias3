@@ -44,6 +44,7 @@ class ControladorAutomata:
         self._historial_deshacer: List[SnapshotHistorial] = []
         self._historial_rehacer: List[SnapshotHistorial] = []
         self._restaurando_historial: bool = False
+        self._ultimo_resultado_conversion: Optional[object] = None
 
         self._temporizador_animacion = QTimer()
         self._temporizador_animacion.setInterval(450)
@@ -374,14 +375,7 @@ class ControladorAutomata:
                 self.modelo.eliminar_estado_aceptacion(nombre)
 
             self._comprometer_snapshot(snap)
-            if hasattr(self.vista, "tabla_transiciones"):
-                self.vista.tabla_transiciones.actualizar_datos(
-                    estados=self.modelo.estados,
-                    simbolos=self.modelo.alfabeto.simbolos,
-                    transiciones=self.modelo.transiciones,
-                    estado_inicial=self.modelo.estado_inicial,
-                    estados_aceptacion=self.modelo.estados_aceptacion,
-                )
+            self._sincronizar_tabla()
             self._limpiar_simulacion()
             self.vista.mostrar_mensaje_estado(f"Propiedades de '{nombre}' actualizadas.")
         except ErrorAutomata as error:
@@ -395,14 +389,7 @@ class ControladorAutomata:
         try:
             self.modelo.eliminar_estado(nombre)
             self._comprometer_snapshot(snap)
-            if hasattr(self.vista, "tabla_transiciones"):
-                self.vista.tabla_transiciones.actualizar_datos(
-                    estados=self.modelo.estados,
-                    simbolos=self.modelo.alfabeto.simbolos,
-                    transiciones=self.modelo.transiciones,
-                    estado_inicial=self.modelo.estado_inicial,
-                    estados_aceptacion=self.modelo.estados_aceptacion,
-                )
+            self._sincronizar_tabla()
             self._limpiar_simulacion()
             self.vista.mostrar_mensaje_estado(f"Estado '{nombre}' eliminado.")
         except ErrorAutomata as error:
@@ -587,6 +574,9 @@ class ControladorAutomata:
             )
         if hasattr(self.vista, "panel_simulacion"):
             self.vista.panel_simulacion.limpiar()
+        self._ultimo_resultado_conversion = None
+        if hasattr(self.vista, "ocultar_paso_a_paso_conversion"):
+            self.vista.ocultar_paso_a_paso_conversion()
         self._limpiar_simulacion()
         self.vista.mostrar_mensaje_estado("Grafo y datos del autómata limpiados por completo.")
 
@@ -663,6 +653,7 @@ class ControladorAutomata:
         if dfa_a_aplicar is None:
             return
         self.registrar_snapshot("Conversión de AFN a AFD")
+        self._ultimo_resultado_conversion = resultado
         self.modelo = dfa_a_aplicar
         self._sincronizar_tabla()
         self._limpiar_simulacion()
@@ -670,6 +661,9 @@ class ControladorAutomata:
         # Distribuir geométricamente los nuevos estados del AFD en el lienzo
         if hasattr(self.vista, "lienzo_grafo"):
             self.vista.lienzo_grafo.auto_organizar_nodos()
+
+        if hasattr(self.vista, "mostrar_paso_a_paso_conversion"):
+            self.vista.mostrar_paso_a_paso_conversion(resultado)
 
         self.vista.mostrar_mensaje_estado(
             f"✔ Conversión completada: AFN transformado exitosamente a AFD con {len(self.modelo.estados)} estados deterministas (Notación Kn)."
@@ -789,6 +783,16 @@ class ControladorAutomata:
             if hasattr(self.vista, "barra_herramientas_grafo"):
                 es_nfa = self.modelo.es_no_deterministico()
                 self.vista.barra_herramientas_grafo.actualizar_estado_no_deterministico(es_nfa)
+
+            # Sincronizar visibilidad del panel paso a paso según el autómata restaurado
+            es_nfa_actual = self.modelo.es_no_deterministico()
+            tiene_estados_kn = any(e.startswith("K") for e in self.modelo.estados)
+            if es_nfa_actual or not tiene_estados_kn:
+                if hasattr(self.vista, "ocultar_paso_a_paso_conversion"):
+                    self.vista.ocultar_paso_a_paso_conversion()
+            elif self._ultimo_resultado_conversion:
+                if hasattr(self.vista, "mostrar_paso_a_paso_conversion"):
+                    self.vista.mostrar_paso_a_paso_conversion(self._ultimo_resultado_conversion)
 
             self._limpiar_simulacion()
         finally:

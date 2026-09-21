@@ -208,7 +208,8 @@ class BarraHerramientasGrafo(QFrame):
         self.modo_cambiado.emit("seleccion")
 
     def actualizar_estado_no_deterministico(self, es_nfa: bool) -> None:
-        """Actualiza el aspecto visual del botón de conversión según si el autómata es AFN."""
+        """Actualiza el aspecto visual y el bloqueo del botón de conversión según si el autómata es AFN."""
+        self.boton_convertir_dfa.setEnabled(es_nfa)
         if es_nfa:
             self.boton_convertir_dfa.setText("⚡ Convertir AFN a AFD")
             self.boton_convertir_dfa.setStyleSheet(
@@ -219,16 +220,16 @@ class BarraHerramientasGrafo(QFrame):
             )
             self.boton_convertir_dfa.setToolTip(
                 "¡Autómata No Determinista detectado!\n"
-                "Haz clic para convertir a AFD determinista y ver la tabla de proceso de subconjuntos."
+                "Haz clic para convertir a AFD determinista y ver el proceso paso a paso."
             )
         else:
-            self.boton_convertir_dfa.setText("⚡ Convertir a DFA")
+            self.boton_convertir_dfa.setText("⚡ Convertir a AFD")
             self.boton_convertir_dfa.setStyleSheet(
-                "QPushButton { background-color: #f8fafc; border: 1px solid #cbd5e1; color: #94a3b8; font-weight: 500; }"
-                "QPushButton:hover { background-color: #f1f5f9; color: #64748b; }"
+                "QPushButton { background-color: #f1f5f9; border: 1px solid #cbd5e1; color: #94a3b8; "
+                "font-weight: 500; padding: 6px 14px; border-radius: 6px; font-size: 12px; }"
             )
             self.boton_convertir_dfa.setToolTip(
-                "El autómata actual es Determinista (AFD). Si agrega transiciones múltiples se activará la conversión."
+                "El autómata actual es Determinista (AFD). La conversión solo se habilita cuando existan conexiones no deterministas (AFN)."
             )
 
     def actualizar_estado_historial(self, puede_deshacer: bool, puede_rehacer: bool) -> None:

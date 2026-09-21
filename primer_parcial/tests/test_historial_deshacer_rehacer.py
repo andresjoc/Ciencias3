@@ -100,7 +100,7 @@ def test_deshacer_rehacer_conversion_afn_a_afd(entorno_app):
 
     # Debe ser AFD ahora
     assert not controlador.modelo.es_no_deterministico()
-    assert "Convertir a DFA" in vista.barra_herramientas_grafo.boton_convertir_dfa.text()
+    assert "Convertir a AFD" in vista.barra_herramientas_grafo.boton_convertir_dfa.text()
 
     # Deshacer conversión (Ctrl+Z)
     assert controlador.deshacer()
@@ -114,7 +114,7 @@ def test_deshacer_rehacer_conversion_afn_a_afd(entorno_app):
     # Rehacer la conversión (Ctrl+Y)
     assert controlador.rehacer()
     assert not controlador.modelo.es_no_deterministico()
-    assert "Convertir a DFA" in vista.barra_herramientas_grafo.boton_convertir_dfa.text()
+    assert "Convertir a AFD" in vista.barra_herramientas_grafo.boton_convertir_dfa.text()
 
 
 def test_deshacer_limpiar_grafo(entorno_app):

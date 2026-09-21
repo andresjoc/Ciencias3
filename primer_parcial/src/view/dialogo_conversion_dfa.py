@@ -455,40 +455,13 @@ class DialogoConversionDFA(QDialog):
         barra_top.addWidget(lbl_leg_doble)
 
         barra_top.addStretch()
-
-        btn_auto = QPushButton("🔄 Auto-distribuir")
-        btn_auto.setToolTip("Reorganiza los nodos circularmente de manera armónica.")
-        btn_auto.setStyleSheet("QPushButton { font-size: 11px; font-weight: bold; padding: 4px 10px; }")
-
-        btn_zoom_in = QPushButton("🔍+")
-        btn_zoom_in.setToolTip("Acercar zoom")
-        btn_zoom_in.setFixedWidth(36)
-
-        btn_zoom_out = QPushButton("🔍-")
-        btn_zoom_out.setToolTip("Alejar zoom")
-        btn_zoom_out.setFixedWidth(36)
-
-        btn_zoom_rst = QPushButton("⟲ 100%")
-        btn_zoom_rst.setToolTip("Restablecer escala original 1:1")
-        btn_zoom_rst.setFixedWidth(52)
-
-        barra_top.addWidget(btn_auto)
-        barra_top.addWidget(btn_zoom_in)
-        barra_top.addWidget(btn_zoom_out)
-        barra_top.addWidget(btn_zoom_rst)
-
         layout_marco.addLayout(barra_top)
 
-        # Lienzo del grafo en modo solo lectura (permite zoom, paneo y arrastre libre de nodos)
-        lienzo_tabla3 = LienzoGrafo(parent=marco_grafo, solo_lectura=True)
+        # Lienzo del grafo en modo estático solo visualización (sin zoom, sin mover nodos, sin botones)
+        lienzo_tabla3 = LienzoGrafo(parent=marco_grafo, solo_lectura=True, modo_estatico=True)
         self.lienzo_tabla3 = lienzo_tabla3
         lienzo_tabla3.setMinimumHeight(350)
         lienzo_tabla3.establecer_alfabeto_permitido(res.alfabeto)
-
-        btn_auto.clicked.connect(lienzo_tabla3.auto_organizar_nodos)
-        btn_zoom_in.clicked.connect(lienzo_tabla3.zoom_acercar)
-        btn_zoom_out.clicked.connect(lienzo_tabla3.zoom_alejar)
-        btn_zoom_rst.clicked.connect(lienzo_tabla3.zoom_restablecer)
 
         estados_tabla3 = [f.etiqueta for f in res.tabla3_formalizada]
         estado_inicial_tabla3 = next((f.etiqueta for f in res.tabla3_formalizada if f.es_inicial), "K0")

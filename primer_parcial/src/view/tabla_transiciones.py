@@ -38,6 +38,7 @@ class TablaTransiciones(QGroupBox):
     estado_agregado = pyqtSignal(str, bool, bool)
     estado_eliminado = pyqtSignal(str)
     conversion_dfa_solicitada = pyqtSignal()
+    ver_paso_a_paso_solicitado = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Tabla de Transiciones (δ)", parent)
@@ -97,6 +98,18 @@ class TablaTransiciones(QGroupBox):
         self.boton_convertir_dfa.clicked.connect(self.conversion_dfa_solicitada.emit)
         self.boton_convertir_dfa.setVisible(False)
         layout_gestion_estados.addWidget(self.boton_convertir_dfa)
+
+        self.boton_ver_paso_a_paso = QPushButton("📐 Ver Paso a Paso")
+        self.boton_ver_paso_a_paso.setStyleSheet(
+            "QPushButton { background-color: #0284c7; border: 1.5px solid #0369a1; color: #ffffff; font-weight: bold; }"
+            "QPushButton:hover { background-color: #0369a1; }"
+        )
+        self.boton_ver_paso_a_paso.setToolTip(
+            "Sección Matriz: Consultar el proceso formal de conversión paso a paso (Tablas 1 a 4 y grafo)."
+        )
+        self.boton_ver_paso_a_paso.clicked.connect(self.ver_paso_a_paso_solicitado.emit)
+        self.boton_ver_paso_a_paso.setVisible(False)
+        layout_gestion_estados.addWidget(self.boton_ver_paso_a_paso)
 
         layout_principal.addLayout(layout_gestion_estados)
 
@@ -244,6 +257,7 @@ class TablaTransiciones(QGroupBox):
                 break
 
         self.boton_convertir_dfa.setVisible(es_nfa)
+        self.boton_convertir_dfa.setEnabled(es_nfa)
         self._es_nfa_actual = es_nfa
         if not self.etiqueta_estado_tabla.text().startswith("⚠"):
             self.limpiar_advertencia()

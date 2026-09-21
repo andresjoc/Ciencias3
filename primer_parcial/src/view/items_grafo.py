@@ -55,6 +55,7 @@ class ItemNodoEstado(QGraphicsItem):
         es_aceptacion: bool = False,
         lienzo: Optional[LienzoGrafo] = None,
         es_inalcanzable: bool = False,
+        permitir_movimiento: bool = True,
     ) -> None:
         super().__init__()
         self.nombre = nombre
@@ -62,19 +63,35 @@ class ItemNodoEstado(QGraphicsItem):
         self.es_aceptacion = es_aceptacion
         self.lienzo = lienzo
         self.es_inalcanzable = es_inalcanzable
+        self.permitir_movimiento = permitir_movimiento
         self.aristas_incidentes: List[ItemAristaTransicion] = []
         self._esta_resaltado = False
         self._en_hover = False
 
         self.setPos(x, y)
-        self.setFlags(
-            QGraphicsItem.GraphicsItemFlag.ItemIsMovable
-            | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
-            | QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
-        )
+        flags = QGraphicsItem.GraphicsItemFlag.ItemSendsGeometryChanges
+        if self.permitir_movimiento:
+            flags |= (
+                QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+                | QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            )
+            self.setAcceptedMouseButtons(Qt.MouseButton.AllButtons)
+        else:
+            self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.setFlags(flags)
         self.setAcceptHoverEvents(True)
         self.setZValue(2.0)  # Los nodos se dibujan por encima de las aristas
         self.actualizar_tooltip()
+
+    def establecer_permitir_movimiento(self, permitir: bool) -> None:
+        """Habilita o deshabilita la posibilidad de arrastrar o seleccionar el nodo."""
+        self.permitir_movimiento = permitir
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, permitir)
+        self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable, permitir)
+        if permitir:
+            self.setAcceptedMouseButtons(Qt.MouseButton.AllButtons)
+        else:
+            self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
 
     def establecer_inalcanzable(self, valor: bool) -> None:
         """Establece si el estado es inalcanzable para representarlo con alerta roja."""
@@ -399,7 +416,11 @@ class ItemAristaTransicion(QGraphicsPathItem):
             self.nodo_destino.agregar_arista(self)
 
         self.setZValue(1.0)
-        self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
+        if self.lienzo and getattr(self.lienzo, "modo_estatico", False):
+            self.setFlags(QGraphicsItem.GraphicsItemFlag(0))
+            self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        else:
+            self.setFlags(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
         self.setAcceptHoverEvents(True)
         self.actualizar_geometria()
 
