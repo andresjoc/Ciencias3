@@ -99,79 +99,114 @@ primer_parcial/
 
 ---
 
-## Ejecución desde Código Fuente
+---
 
-1. **Abrir una terminal** en la carpeta raíz del proyecto:
+## Guía de Ejecución: Windows y Linux / macOS
+
+La aplicación es **multiplataforma** al estar construida en Python 3 y PyQt6. Puede ejecutarse directamente desde el código fuente en cualquier sistema operativo o mediante el binario `.exe` standalone en Windows.
+
+### 🪟 Opción A: Ejecución en Windows
+
+#### 1. Mediante el Ejecutable (.exe) — Sin necesidad de Python
+El proyecto incluye un binario standalone que no requiere instalar Python ni dependencias:
+1. Navegue a la carpeta `dist/`.
+2. Haga doble clic sobre **`SimulaAutomata.exe`** (o ejecútelo desde PowerShell/CMD):
    ```powershell
-   cd "c:\Users\andre\Downloads\Decimo Semestre\Ciencias 3\primer_parcial"
+   .\dist\SimulaAutomata.exe
    ```
-2. **Instalar dependencias:**
-   ```powershell
-   pip install PyQt6 pytest pyinstaller
-   ```
-3. **Lanzar la aplicación:**
-   ```powershell
-   python src/main.py
-   ```
+   > **Nota importante:** Este archivo `.exe` es un binario nativo de Windows (contiene las librerías dinámicas `.dll` de Qt6) y funciona únicamente en sistemas operativos Windows.
+
+#### 2. Desde Código Fuente en Windows
+Si desea ejecutarlo desde la terminal con Python:
+```powershell
+# 1. Crear y activar entorno virtual (opcional pero recomendado)
+python -m venv venv
+.\venv\Scripts\Activate.ps1
+
+# 2. Instalar dependencias
+pip install PyQt6 pytest pyinstaller
+
+# 3. Iniciar la aplicación
+python src/main.py
+```
+
+---
+
+### 🐧 Opción B: Ejecución en Linux (Ubuntu, Debian, Fedora, Arch, etc.)
+
+En Linux, la aplicación se ejecuta directamente con el intérprete de Python (los archivos `.exe` de Windows no se ejecutan directamente en Linux).
+
+#### 1. Instalar dependencias del sistema para Qt6
+En distribuciones basadas en Debian/Ubuntu:
+```bash
+sudo apt update
+sudo apt install -y python3 python3-pip python3-venv libxcb-cursor0 libxkbcommon-x11-0 libxcb-xinerama0
+```
+*(En Fedora: `sudo dnf install python3-pip libxcb xcb-util-cursor xcb-util-wm`)*
+
+#### 2. Configurar el entorno y ejecutar
+```bash
+# 1. Clonar o ubicarse en la carpeta del proyecto
+cd "primer_parcial"
+
+# 2. Crear y activar entorno virtual
+python3 -m venv venv
+source venv/bin/activate
+
+# 3. Instalar librerías de Python
+pip install PyQt6 pytest
+
+# 4. Lanzar la aplicación
+python3 src/main.py
+```
+
+#### 3. (Opcional) Compilar binario nativo para Linux
+Si desea generar un binario ejecutable independiente para Linux (equivalente al `.exe` de Windows):
+```bash
+pip install pyinstaller
+python3 -m PyInstaller --noconfirm --clean --onefile --windowed --name SimulaAutomata_Linux --paths . src/main.py
+# El binario se generará en dist/SimulaAutomata_Linux
+./dist/SimulaAutomata_Linux
+```
 
 ---
 
 ## Ejecución de Pruebas Automatizadas
 
-La suite incluye **64 pruebas unitarias e integrales** que cubren el modelo, el editor visual de grafos, las transiciones, el NFA y la simulación:
+La suite incluye **108 pruebas unitarias e integrales** que cubren el modelo formal, el editor visual de grafos, las transiciones, el NFA, la construcción de subconjuntos, el historial de Deshacer/Rehacer y la simulación de cintas:
 
-```powershell
+```bash
+# Ejecución completa detallada
 pytest -v
-```
 
-Para ejecución resumida:
-```powershell
+# Ejecución resumida
 pytest -q
 ```
 
 ---
 
-## Compilación del Binario Standalone (`SimulaAutomata.exe`)
+## Compilación del Binario Standalone para Windows (`SimulaAutomata.exe`)
 
-El ejecutable para Windows se compila con:
+El ejecutable para Windows se compila con PyInstaller usando:
 - `--onefile`: Todo el runtime de Python, PyQt6, Qt C++ y módulos del proyecto en un solo binario.
 - `--windowed`: Modo ventana nativa sin consola negra de fondo.
-- `--paths .`: Resolución garantizada de paquetes en español.
+- `--paths .`: Resolución garantizada de paquetes en español (`src.model`, `src.view`, `src.controller`).
 
-### Opción 1: Mediante Script de Python (Recomendado)
+### Script de Python (Recomendado)
 ```powershell
 python compilar_ejecutable.py
 ```
 
-### Opción 2: Mediante Script de PowerShell
+### Script de PowerShell
 ```powershell
 .\compilar.ps1
 ```
 
-### Opción 3: Comando Directo de PyInstaller
+### Comando Directo de PyInstaller
 ```powershell
 python -m PyInstaller --noconfirm --clean --onefile --windowed --name SimulaAutomata --paths . src/main.py
 ```
-
-El ejecutable compilado se generará en:
-```text
-dist\SimulaAutomata.exe
-```
-
----
-
-## Cómo Verificar la Ejecución en un Entorno Limpio (Sin Python)
-
-1. **Copiar únicamente el ejecutable:**
-   Tome el archivo `dist\SimulaAutomata.exe` y cópielo a cualquier otra carpeta, memoria USB o computadora con Windows que **no** tenga Python instalado.
-2. **Ejecutar el archivo:**
-   Haga doble clic en `SimulaAutomata.exe` o ejecútelo desde la consola:
-   ```powershell
-   .\dist\SimulaAutomata.exe
-   ```
-3. **Comprobación:**
-   - La ventana abrirá de forma nativa e instantánea.
-   - Podrá pintar estados, arrastrar nodos con el ratón, tirar flechas, editar la tabla y simular la cinta en tiempo real sin requerir Python.
+El ejecutable compilado se generará en `dist\SimulaAutomata.exe`.
 
 ---
 
@@ -221,7 +256,3 @@ dist\SimulaAutomata.exe
 - **Pestaña Permanente:** Permite consultar el informe continuo en cualquier momento en la pestaña **"📐 Paso a Paso (AFN → AFD)"** ubicada contigua a la Matriz de Transiciones.
 
 ---
-
-## Licencia y Créditos
-
-Proyecto desarrollado para la asignatura **Ciencias de la Computación 3 (Lenguajes Formales y Autómatas)**, Décimo Semestre, Universidad del Quindío.

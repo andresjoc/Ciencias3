@@ -1,6 +1,6 @@
-"""Módulo para la conversión de AFN a AFD siguiendo el Método del Profesor.
+"""Módulo para la conversión de AFN a AFD
 
-Implementa con exactitud el procedimiento paso a paso documentado en 'guiiadeconversionAFNtoAFN.md':
+Implementa con exactitud el procedimiento paso a paso:
 - Paso 1: Construcción de la tabla de transiciones original del AFN (Tabla 1).
 - Paso 2: Generación y evaluación de nuevos estados compuestos por unión de transiciones (Tabla 2).
 - Paso 3: Renombramiento formal de estados a la notación K_n (K0, K1, K2...).

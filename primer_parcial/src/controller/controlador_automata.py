@@ -679,13 +679,20 @@ class ControladorAutomata:
                 )
             return
 
-        # Si el modelo aún no es instancia de AutomataNFA formal pero tiene no determinismo
+        resultado_conversion = self.ejecutar_conversion_dfa()
+
+        dialogo = DialogoConversionDFA(resultado_conversion, parent=self.vista)
+        dialogo.aplicar_afd_solicitado.connect(self.al_aplicar_conversion_dfa)
+        dialogo.exec()
+
+    def ejecutar_conversion_dfa(self) -> object:
+        """Ejecuta formalmente el algoritmo de construcción de subconjuntos sobre el modelo actual."""
+        from src.model.conversion_nfa_dfa import ConvertidorSubconjuntos
+
         if not isinstance(self.modelo, AutomataNFA):
             self.convertir_modelo_a_nfa()
 
-        dialogo = DialogoConversionDFA(self.modelo, parent=self.vista)
-        dialogo.aplicar_afd_solicitado.connect(self.al_aplicar_conversion_dfa)
-        dialogo.exec()
+        return ConvertidorSubconjuntos.convertir(self.modelo)
 
     def al_aplicar_conversion_dfa(self, resultado: object) -> None:
         """Sustituye el modelo por el AFD equivalente generado y sincroniza toda la interfaz."""

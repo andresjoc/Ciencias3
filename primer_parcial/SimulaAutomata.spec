@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['C:/Users/andre/Downloads/Decimo Semestre/Ciencias 3/primer_parcial/src/main.py'],
-    pathex=['C:/Users/andre/Downloads/Decimo Semestre/Ciencias 3/primer_parcial'],
+    ['src/main.py'],
+    pathex=['.'],
     binaries=[],
     datas=[],
     hiddenimports=[],

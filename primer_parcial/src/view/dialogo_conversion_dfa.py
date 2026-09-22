@@ -22,7 +22,6 @@ from PyQt6.QtWidgets import (
 
 from src.model.automata_nfa import AutomataNFA
 from src.model.conversion_nfa_dfa import (
-    ConvertidorSubconjuntos,
     FilaMapeoKn,
     ResultadoConversionMetodoProfe,
 )
@@ -45,22 +44,26 @@ class DialogoConversionDFA(QDialog):
 
     def __init__(
         self,
-        nfa: AutomataNFA,
+        resultado_o_nfa: Union[ResultadoConversionMetodoProfe, AutomataNFA],
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
-        self.nfa = nfa
-        self.resultado: Optional[ResultadoConversionMetodoProfe] = None
+        if isinstance(resultado_o_nfa, ResultadoConversionMetodoProfe):
+            self.resultado = resultado_o_nfa
+            self.nfa = getattr(resultado_o_nfa, "nfa", None)
+        else:
+            self.nfa = resultado_o_nfa
+            self._calcular_conversion()
 
         self.setWindowTitle("Procedimiento de Conversión: AFN a AFD")
         self.resize(1040, 740)
         self.setMinimumSize(880, 580)
 
-        self._calcular_conversion()
         self._inicializar_ui()
 
     def _calcular_conversion(self) -> None:
-        """Ejecuta el algoritmo del profesor sobre el AFN."""
+        """Compatibilidad de respaldo si se pasa un AFN directamente."""
+        from src.model.conversion_nfa_dfa import ConvertidorSubconjuntos
         self.resultado = ConvertidorSubconjuntos.convertir(self.nfa)
 
     def _inicializar_ui(self) -> None:
